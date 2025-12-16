@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPBasicCredentials
 from sqlmodel import Session, create_engine, SQLModel, select
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import httpx
 
 # ⭐ IMPORTANT: Import all models BEFORE creating tables
-from models import User, Resume, Job, Application, Activity
+from models import User, Resume, Job
 
 # Import parser
 from parser import JDParser, extract_resume_text

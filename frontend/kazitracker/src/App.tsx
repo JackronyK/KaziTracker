@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, LogOut, Plus, Trash2, CheckCircle2, AlertCircle, ArrowRight, Search } from 'lucide-react';
 import { apiClient } from './api';
-import type { Job, User, ParsedJD } from './api'; // Use type imports for interfaces
+import type { Job, User, ParsedJD } from './api'; 
 
 
 // =============================================================================
