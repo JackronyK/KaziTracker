@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+sqlalchemy
+pyjwt
+python-dotenv
+pydantic
+httpx
+psycopg2-binary
+spacy
+pdfminer.six
+python-docx
+python-multipart
