@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import httpx
 
 # ⭐ IMPORTANT: Import all models BEFORE creating tables
-from models import User, Resume, Job
+from models import User, Resume, Job, Application
 
 # Import parser
 from parser import JDParser, extract_resume_text
@@ -40,6 +40,14 @@ engine = create_engine(
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
+def reset_db_and_tables():
+    """⚠️ WARNING: DROPS ALL DATA! Use only in development."""
+    print("🔥 Dropping ALL tables...")
+    SQLModel.metadata.drop_all(engine)
+    print("✅ Creating fresh tables...")
+    SQLModel.metadata.create_all(engine)
+    print("✨ Database reset complete!")
+
 def get_session():
     with Session(engine) as session:
         yield session
@@ -47,7 +55,8 @@ def get_session():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    create_db_and_tables()
+    create_db_and_tables()    
+    #reset_db_and_tables()
     print("✅ Database initialized with all tables")
     yield
     # Shutdown
@@ -260,6 +269,204 @@ def delete_job(job_id: int, email: str = Depends(verify_token), session: Session
     return {"detail": "Job deleted"}
 
 # =============================================================================
+# ROUTES: Applications (PHASE 4)
+# =============================================================================
+
+class ApplicationInput(BaseModel):
+    job_id: int
+    status: str = "Saved"  # Saved, Applied, Interview, Offer, Rejected
+    resume_id: int | None = None
+    notes: str | None = None
+
+class ApplicationUpdate(BaseModel):
+    status: str | None = None
+    applied_date: datetime | None = None
+    interview_date: datetime | None = None
+    offer_date: datetime | None = None
+    rejected_date: datetime | None = None
+    resume_id: int | None = None
+    notes: str | None = None
+
+class ApplicationResponse(BaseModel):
+    id: int
+    user_id: int
+    job_id: int
+    status: str
+    resume_id: int | None = None
+    notes: str | None = None
+    applied_date: datetime | None = None
+    interview_date: datetime | None = None
+    offer_date: datetime | None = None
+    rejected_date: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    
+    # Computed fields for frontend convenience
+    company_name: str | None = None
+    job_title: str | None = None
+
+@app.post("/api/applications", response_model=ApplicationResponse)
+def create_application(
+    app_input: ApplicationInput,
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """Create a new application."""
+    # Verify user
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify job exists and belongs to user
+    job = session.exec(select(Job).where(Job.id == app_input.job_id).where(Job.user_id == user.id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Create application
+    application = Application(
+        user_id=user.id,
+        job_id=app_input.job_id,
+        status=app_input.status,
+        resume_id=app_input.resume_id,
+        notes=app_input.notes,
+    )
+    
+    session.add(application)
+    session.commit()
+    session.refresh(application)
+    
+    # Add job details for frontend
+    response = ApplicationResponse(**application.__dict__)
+    response.company_name = job.company
+    response.job_title = job.title
+    
+    return response
+
+@app.get("/api/applications")
+def list_applications(
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """List all applications for the current user."""
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    applications = session.exec(
+        select(Application)
+        .where(Application.user_id == user.id)
+        .order_by(Application.created_at.desc())
+    ).all()
+    
+    # Enrich with job details
+    result = []
+    for app in applications:
+        job = session.exec(select(Job).where(Job.id == app.job_id)).first()
+        response = ApplicationResponse(**app.__dict__)
+        if job:
+            response.company_name = job.company
+            response.job_title = job.title
+        result.append(response)
+    
+    return result
+
+@app.get("/api/applications/{app_id}", response_model=ApplicationResponse)
+def get_application(
+    app_id: int,
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """Get a specific application."""
+    user = session.exec(select(User).where(User.email == email)).first()
+    application = session.exec(
+        select(Application)
+        .where(Application.id == app_id)
+        .where(Application.user_id == user.id)
+    ).first()
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Get job details
+    job = session.exec(select(Job).where(Job.id == application.job_id)).first()
+    response = ApplicationResponse(**application.__dict__)
+    if job:
+        response.company_name = job.company
+        response.job_title = job.title
+    
+    return response
+
+@app.patch("/api/applications/{app_id}", response_model=ApplicationResponse)
+def update_application(
+    app_id: int,
+    app_update: ApplicationUpdate,
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """Update an application (including status)."""
+    user = session.exec(select(User).where(User.email == email)).first()
+    application = session.exec(
+        select(Application)
+        .where(Application.id == app_id)
+        .where(Application.user_id == user.id)
+    ).first()
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Update fields
+    app_data = app_update.model_dump(exclude_unset=True)
+    for key, value in app_data.items():
+        setattr(application, key, value)
+    
+    # Auto-set date when status changes
+    if app_update.status:
+        if app_update.status == "Applied" and not application.applied_date:
+            application.applied_date = datetime.utcnow()
+        elif app_update.status == "Interview" and not application.interview_date:
+            application.interview_date = datetime.utcnow()
+        elif app_update.status == "Offer" and not application.offer_date:
+            application.offer_date = datetime.utcnow()
+        elif app_update.status == "Rejected" and not application.rejected_date:
+            application.rejected_date = datetime.utcnow()
+    
+    application.updated_at = datetime.utcnow()
+    
+    session.add(application)
+    session.commit()
+    session.refresh(application)
+    
+    # Get job details
+    job = session.exec(select(Job).where(Job.id == application.job_id)).first()
+    response = ApplicationResponse(**application.__dict__)
+    if job:
+        response.company_name = job.company
+        response.job_title = job.title
+    
+    return response
+
+@app.delete("/api/applications/{app_id}")
+def delete_application(
+    app_id: int,
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """Delete an application."""
+    user = session.exec(select(User).where(User.email == email)).first()
+    application = session.exec(
+        select(Application)
+        .where(Application.id == app_id)
+        .where(Application.user_id == user.id)
+    ).first()
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    session.delete(application)
+    session.commit()
+    return {"detail": "Application deleted"}
+
+# =============================================================================
 # ROUTES: Resume Upload
 # =============================================================================
 
@@ -327,6 +534,32 @@ def list_resumes(email: str = Depends(verify_token), session: Session = Depends(
     
     resumes = session.exec(select(Resume).where(Resume.user_id == user.id)).all()
     return resumes
+
+@app.patch("/api/resumes/{resume_id}")
+def update_resume_tags(
+    resume_id: int,
+    tags: str | None = None,
+    email: str = Depends(verify_token),
+    session: Session = Depends(get_session)
+):
+    """Update resume tags."""
+    user = session.exec(select(User).where(User.email == email)).first()
+    resume = session.exec(
+        select(Resume)
+        .where(Resume.id == resume_id)
+        .where(Resume.user_id == user.id)
+    ).first()
+    
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    
+    if tags is not None:
+        resume.tags = tags
+    
+    session.add(resume)
+    session.commit()
+    session.refresh(resume)
+    return resume
 
 @app.delete("/api/resumes/{resume_id}")
 def delete_resume(resume_id: int, email: str = Depends(verify_token), session: Session = Depends(get_session)):

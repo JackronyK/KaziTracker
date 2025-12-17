@@ -1,67 +1,23 @@
-// API client utilities
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+/**
+ * Enhanced API Client with Comprehensive Error Logging
+ * Features: JWT auth, error handling, request/response logging, retry logic
+ */
 
-// =============================================================================
-// TYPE DEFINITIONS (These must be exported!)
-// =============================================================================
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-}
-
-export interface User {
-  email: string;
-}
-
-export interface Job {
-  id: number;
-  title: string;
-  company: string;
-  location?: string;
-  salary_range?: string;
-  description: string;
-  apply_url?: string;
-  parsed_skills?: string;
-  seniority_level?: string;
-  source?: string;
-  created_at: string;
-}
-
-export interface Resume {
-  id: number;
-  filename: string;
-  file_type: string;
-  tags?: string;
-  created_at: string;
-}
-
-export interface Application {
-  id: number;
-  job_id: number;
-  resume_id?: number;
-  status: 'saved' | 'applied' | 'interview' | 'offer' | 'rejected';
-  notes?: string;
-  applied_date?: string;
-  created_at: string;
-}
-
-export interface ParsedJD {
-  title: string;
-  company: string;
-  location?: string;
-  salary_range?: string;
-  seniority_level?: string;
-  skills: string[];
-  description: string;
-  apply_url?: string;
-  confidence: number;
-}
+import type {
+  LoginRequest,
+  TokenResponse,
+  User,
+  Job,
+  JobInput,
+  ParsedJD,
+  Application,
+  ApplicationInput,
+  ApplicationUpdate,
+  Resume,
+  ApiError,
+} from './types';
+import { API_URL, ERROR_MESSAGES, API_TIMEOUT } from './utils/constants';
+import { logError, logInfo, logWarn, errorLogger } from './utils/errorLogger';
 
 // =============================================================================
 // API CLIENT CLASS
@@ -70,199 +26,480 @@ export interface ParsedJD {
 class APIClient {
   private baseURL: string;
   private token: string | null = null;
+  private timeout: number;
 
-  constructor(baseURL: string = API_URL) {
+  constructor(baseURL: string = API_URL, timeout: number = API_TIMEOUT) {
     this.baseURL = baseURL;
-    this.token = localStorage.getItem('token');
+    this.timeout = timeout;
+    this.token = this.getStoredToken();
   }
 
+  // =========================================================================
+  // TOKEN MANAGEMENT
+  // =========================================================================
+
+  /**
+   * Set JWT token
+   */
   setToken(token: string) {
     this.token = token;
     localStorage.setItem('token', token);
+    logInfo('Token set successfully');
   }
 
+  /**
+   * Get token from storage
+   */
+  private getStoredToken(): string | null {
+    const token = localStorage.getItem('token');
+    return token || null;
+  }
+
+  /**
+   * Get current token
+   */
   getToken(): string | null {
-    return this.token || localStorage.getItem('token');
+    return this.token || this.getStoredToken();
   }
 
+  /**
+   * Clear token and logout
+   */
   clearToken() {
     this.token = null;
     localStorage.removeItem('token');
+    logInfo('Token cleared - user logged out');
   }
 
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  // =========================================================================
+  // REQUEST HANDLING
+  // =========================================================================
+
+  /**
+   * Make API request with error handling
+   */
   private async request<T>(
     method: string,
     endpoint: string,
     body?: any,
+    isFormData: boolean = false
   ): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    const url = `${this.baseURL}${endpoint}`;
+    const headers: HeadersInit = {};
 
-    // Get token from storage or instance
+    // Add auth token if available
     const token = this.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const error = data.detail || data.message || 'An error occurred';
-      throw new Error(error);
+    // Add content type (unless FormData)
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
     }
 
-    return data;
+    const config: RequestInit = {
+      method,
+      headers,
+      body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+    };
+
+    logInfo(`API Request: ${method} ${endpoint}`);
+
+    try {
+      // Set timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Parse response
+      const data = await response.json().catch(() => null);
+
+      // Handle errors
+      if (!response.ok) {
+        const error = data as ApiError;
+        const errorMessage = error.detail || error.message || ERROR_MESSAGES.UNEXPECTED_ERROR;
+        
+        // Log error
+        logError(`API Error: ${method} ${endpoint}`, undefined, {
+          status: response.status,
+          message: errorMessage,
+          endpoint,
+        });
+
+        // Handle specific status codes
+        if (response.status === 401) {
+          this.clearToken();
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      logInfo(`API Success: ${method} ${endpoint}`, { status: response.status });
+      return data as T;
+    } catch (error) {
+      // Handle different error types
+      if (error instanceof TypeError) {
+        logError('Network Error', error, { endpoint, method });
+        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+      }
+
+      if (error instanceof SyntaxError) {
+        logError('Invalid Response Format', error, { endpoint, method });
+        throw new Error('Invalid response from server');
+      }
+
+      // Re-throw other errors
+      logError(`Request Failed: ${method} ${endpoint}`, error as Error);
+      throw error;
+    }
   }
 
-  // ==========================================================================
-  // AUTH METHODS
-  // ==========================================================================
+  // =========================================================================
+  // AUTH ENDPOINTS
+  // =========================================================================
 
+  /**
+   * Sign up new user
+   */
   async signup(email: string, password: string): Promise<TokenResponse> {
-    return this.request<TokenResponse>('POST', '/api/auth/signup', {
-      email,
-      password,
-    });
+    try {
+      logInfo('Signup attempt', { email });
+      const response = await this.request<TokenResponse>('POST', '/api/auth/signup', {
+        email,
+        password,
+      });
+      this.setToken(response.access_token);
+      return response;
+    } catch (error) {
+      logError('Signup failed', error as Error, { email });
+      throw error;
+    }
   }
 
+  /**
+   * Login user
+   */
   async login(email: string, password: string): Promise<TokenResponse> {
-    return this.request<TokenResponse>('POST', '/api/auth/login', {
-      email,
-      password,
-    });
+    try {
+      logInfo('Login attempt', { email });
+      const response = await this.request<TokenResponse>('POST', '/api/auth/login', {
+        email,
+        password,
+      });
+      this.setToken(response.access_token);
+      return response;
+    } catch (error) {
+      logError('Login failed', error as Error, { email });
+      throw error;
+    }
   }
 
+  /**
+   * Get current user info
+   */
   async getCurrentUser(): Promise<User> {
-    return this.request<User>('GET', '/api/auth/me');
+    try {
+      return await this.request<User>('GET', '/api/auth/me');
+    } catch (error) {
+      logError('Failed to fetch current user', error as Error);
+      throw error;
+    }
   }
 
-  // ==========================================================================
-  // JOB METHODS
-  // ==========================================================================
+  // =========================================================================
+  // JOB ENDPOINTS
+  // =========================================================================
 
-  async createJob(job: Omit<Job, 'id' | 'created_at'>): Promise<Job> {
-    return this.request<Job>('POST', '/api/jobs', job);
+  /**
+   * Create new job
+   */
+  async createJob(job: JobInput): Promise<Job> {
+    try {
+      logInfo('Creating job', { company: job.company, title: job.title });
+      return await this.request<Job>('POST', '/api/jobs', job);
+    } catch (error) {
+      logError('Failed to create job', error as Error);
+      throw error;
+    }
   }
 
+  /**
+   * Get all jobs
+   */
   async listJobs(): Promise<Job[]> {
-    return this.request<Job[]>('GET', '/api/jobs');
+    try {
+      return await this.request<Job[]>('GET', '/api/jobs');
+    } catch (error) {
+      logError('Failed to fetch jobs', error as Error);
+      throw error;
+    }
   }
 
+  /**
+   * Get single job
+   */
   async getJob(id: number): Promise<Job> {
-    return this.request<Job>('GET', `/api/jobs/${id}`);
+    try {
+      return await this.request<Job>('GET', `/api/jobs/${id}`);
+    } catch (error) {
+      logError('Failed to fetch job', error as Error, { jobId: id });
+      throw error;
+    }
   }
 
-  async updateJob(
-    id: number,
-    job: Partial<Job>,
-  ): Promise<Job> {
-    return this.request<Job>('PATCH', `/api/jobs/${id}`, job);
+  /**
+   * Update job
+   */
+  async updateJob(id: number, job: Partial<JobInput>): Promise<Job> {
+    try {
+      logInfo('Updating job', { jobId: id });
+      return await this.request<Job>('PATCH', `/api/jobs/${id}`, job);
+    } catch (error) {
+      logError('Failed to update job', error as Error, { jobId: id });
+      throw error;
+    }
   }
 
+  /**
+   * Delete job
+   */
   async deleteJob(id: number): Promise<void> {
-    return this.request<void>('DELETE', `/api/jobs/${id}`);
+    try {
+      logInfo('Deleting job', { jobId: id });
+      await this.request<void>('DELETE', `/api/jobs/${id}`);
+    } catch (error) {
+      logError('Failed to delete job', error as Error, { jobId: id });
+      throw error;
+    }
   }
 
-  // ==========================================================================
-  // PARSER METHODS
-  // ==========================================================================
+  // =========================================================================
+  // PARSER ENDPOINT
+  // =========================================================================
 
+  /**
+   * Parse job description
+   */
   async parseJD(
     rawJd: string,
     url?: string,
-    useLLM: boolean = false,
+    useLLM: boolean = false
   ): Promise<ParsedJD> {
-    return this.request<ParsedJD>('POST', '/api/parse/jd', {
-      raw_jd: rawJd,
-      url,
-      use_llm: useLLM,
-    });
-  }
-
-  // ==========================================================================
-  // RESUME METHODS
-  // ==========================================================================
-
-  async uploadResume(file: File, tags?: string): Promise<Resume> {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (tags) {
-      formData.append('tags', tags);
+    try {
+      logInfo('Parsing job description', { useLLM, hasUrl: !!url });
+      return await this.request<ParsedJD>('POST', '/api/parse/jd', {
+        raw_jd: rawJd,
+        url,
+        use_llm: useLLM,
+      });
+    } catch (error) {
+      logError('Failed to parse job description', error as Error);
+      throw error;
     }
+  }
 
-    const headers: HeadersInit = {};
-    const token = this.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  // =========================================================================
+  // APPLICATION ENDPOINTS (PHASE 4)
+  // =========================================================================
+
+  /**
+   * Create application
+   */
+  async createApplication(app: ApplicationInput): Promise<Application> {
+    try {
+      logInfo('Creating application', { jobId: app.job_id });
+      return await this.request<Application>('POST', '/api/applications', app);
+    } catch (error) {
+      logError('Failed to create application', error as Error);
+      throw error;
     }
-
-    const response = await fetch(
-      `${this.baseURL}/api/resumes/upload`,
-      {
-        method: 'POST',
-        headers,
-        body: formData,
-      },
-    );
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.detail || 'Upload failed');
-    }
-
-    return data;
   }
 
-  async listResumes(): Promise<Resume[]> {
-    return this.request<Resume[]>('GET', '/api/resumes');
-  }
-
-  async deleteResume(id: number): Promise<void> {
-    return this.request<void>('DELETE', `/api/resumes/${id}`);
-  }
-
-  // ==========================================================================
-  // APPLICATION METHODS
-  // ==========================================================================
-
-  async createApplication(
-    jobId: number,
-    resumeId?: number,
-  ): Promise<Application> {
-    return this.request<Application>('POST', '/api/applications', {
-      job_id: jobId,
-      resume_id: resumeId,
-    });
-  }
-
+  /**
+   * Get all applications
+   */
   async listApplications(): Promise<Application[]> {
-    return this.request<Application[]>('GET', '/api/applications');
+    try {
+      return await this.request<Application[]>('GET', '/api/applications');
+    } catch (error) {
+      logError('Failed to fetch applications', error as Error);
+      throw error;
+    }
   }
 
-  async updateApplication(
+  /**
+   * Get single application
+   */
+  async getApplication(id: number): Promise<Application> {
+    try {
+      return await this.request<Application>('GET', `/api/applications/${id}`);
+    } catch (error) {
+      logError('Failed to fetch application', error as Error, { appId: id });
+      throw error;
+    }
+  }
+
+  /**
+   * Update application (all fields)
+   */
+  async updateApplication(id: number, app: ApplicationUpdate): Promise<Application> {
+    try {
+      logInfo('Updating application', { appId: id, newStatus: app.status });
+      return await this.request<Application>('PATCH', `/api/applications/${id}`, app);
+    } catch (error) {
+      logError('Failed to update application', error as Error, { appId: id });
+      throw error;
+    }
+  }
+
+  /**
+   * Update application status
+   * Convenience method that calls updateApplication with just status
+   */
+  async updateApplicationStatus(
     id: number,
     status: string,
-    notes?: string,
+    dates?: {
+      applied_date?: string;
+      interview_date?: string;
+      offer_date?: string;
+      rejected_date?: string;
+    }
   ): Promise<Application> {
-    return this.request<Application>('PATCH', `/api/applications/${id}`, {
-      status,
-      notes,
-    });
+    try {
+      logInfo('Updating application status', { appId: id, newStatus: status });
+      const update: ApplicationUpdate = { status, ...dates };
+      return await this.request<Application>('PATCH', `/api/applications/${id}`, update);
+    } catch (error) {
+      logError('Failed to update application status', error as Error, { appId: id });
+      throw error;
+    }
   }
 
-  // ==========================================================================
-  // UTILITY METHODS
-  // ==========================================================================
+  /**
+   * Delete application
+   */
+  async deleteApplication(id: number): Promise<void> {
+    try {
+      logInfo('Deleting application', { appId: id });
+      await this.request<void>('DELETE', `/api/applications/${id}`);
+    } catch (error) {
+      logError('Failed to delete application', error as Error, { appId: id });
+      throw error;
+    }
+  }
 
+  // =========================================================================
+  // RESUME ENDPOINTS (PHASE 5)
+  // =========================================================================
+
+  /**
+   * Upload resume
+   */
+  async uploadResume(file: File, tags?: string): Promise<Resume> {
+    try {
+      logInfo('Uploading resume', { filename: file.name, size: file.size });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (tags) {
+        formData.append('tags', tags);
+      }
+
+      return await this.request<Resume>('POST', '/api/resumes/upload', formData, true);
+    } catch (error) {
+      logError('Failed to upload resume', error as Error, { filename: file.name });
+      throw error;
+    }
+  }
+
+  /**
+   * Get all resumes
+   */
+  async listResumes(): Promise<Resume[]> {
+    try {
+      return await this.request<Resume[]>('GET', '/api/resumes');
+    } catch (error) {
+      logError('Failed to fetch resumes', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update resume tags
+   */
+  async updateResumeTags(id: number, tags: string[]): Promise<Resume> {
+    try {
+      logInfo('Updating resume tags', { resumeId: id, tagCount: tags.length });
+      const tagsString = tags.join(',');
+      return await this.request<Resume>('PATCH', `/api/resumes/${id}`, {
+        tags: tagsString,
+      });
+    } catch (error) {
+      logError('Failed to update resume tags', error as Error, { resumeId: id });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete resume
+   */
+  async deleteResume(id: number): Promise<void> {
+    try {
+      logInfo('Deleting resume', { resumeId: id });
+      await this.request<void>('DELETE', `/api/resumes/${id}`);
+    } catch (error) {
+      logError('Failed to delete resume', error as Error, { resumeId: id });
+      throw error;
+    }
+  }
+
+  // =========================================================================
+  // UTILITY ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Health check
+   */
   async healthCheck(): Promise<{ status: string }> {
-    return this.request<{ status: string }>('GET', '/health');
+    try {
+      return await this.request<{ status: string }>('GET', '/health');
+    } catch (error) {
+      logError('Health check failed', error as Error);
+      throw error;
+    }
+  }
+
+  // =========================================================================
+  // DEBUG UTILITIES
+  // =========================================================================
+
+  /**
+   * Get all logs (for debugging)
+   */
+  getLogs() {
+    return errorLogger.getLogs();
+  }
+
+  /**
+   * Clear logs
+   */
+  clearLogs() {
+    errorLogger.clearLogs();
   }
 }
 
