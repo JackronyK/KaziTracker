@@ -3,3 +3,5 @@ kazi_env
 nodu_modules
 garage
 .ini
+uploads
+../.gitignore

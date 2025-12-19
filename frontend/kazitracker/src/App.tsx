@@ -18,6 +18,7 @@ import { MainLayout } from './components/Layout/MainLayout';
 import { DashboardPage } from './pages/Dashboard';
 import { JobsPage } from './pages/JobsPage'
 import { ApplicationsPage } from './pages/ApplicationsPage'
+import { ResumesPage } from './pages/ResumePage'
 import { Sidebar } from './components/Layout/Sidebar';
 import type { NavTab } from './components/Layout/Sidebar';
 import { UserStar } from 'lucide-react';
@@ -163,17 +164,8 @@ export default function App() {
         {activeTab == 'applications' && <ApplicationsPage />}
 
         {/* Resumes Tab - Phase 5 (Placeholder for now) */}
-        {activeTab === 'resumes' && (
-          <div className="h-full overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Resumes</h1>
-            <p className="text-gray-600 mb-8">
-              Manage your resume files and tagging
-            </p>
-            <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
-              <p className="text-gray-600">📄 Resume manager - Coming in Phase 5</p>
-            </div>
-          </div>
-        )}
+        {activeTab === 'resumes' && <ResumesPage/>}
+
         </MainLayout>
   );
 }
