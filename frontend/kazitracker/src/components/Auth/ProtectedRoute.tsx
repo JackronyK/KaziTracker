@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from "react";
-import { apiClient } from "../../api";
+import { apiClient } from "../../api/index";
 import type { User } from '../../types';
 
 

@@ -32,11 +32,12 @@ import { UpdateStatusModal } from '../components/applications/UpdateStatusModal'
 
 export const ApplicationsPage = () => {
   // Hooks
-  const { applications, loading, error, fetchApplications, deleteApplication } =
-    useApplications();
-  const { jobs } = useJobs();
+  const { applications, loading: appsLoading, error, fetchApplications, deleteApplication } = useApplications();
+  const { jobs, loading: jobsLoading, fetchJobs } = useJobs();
 
   // State
+  // Wait for both to load before showing the create modal
+  const [canShowCreateModal, setCanShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -46,9 +47,12 @@ export const ApplicationsPage = () => {
 
   // Fetch applications on mount
   useEffect(() => {
-    logInfo('ApplicationsPage mounted - fetching applications');
+    logInfo('ApplicationsPage mounted - fetching applications and jobs');
     fetchApplications();
-  }, [fetchApplications]);
+    fetchJobs().then(() => {
+      setCanShowCreateModal(true);
+    });
+  }, [fetchApplications, fetchJobs]);
 
   // Filter and sort applications
   const filteredApps = applications
@@ -140,8 +144,11 @@ export const ApplicationsPage = () => {
           <button
             onClick={() => {
               logInfo('Create application button clicked');
+              if (canShowCreateModal) {
               setShowCreateModal(true);
-            }}
+            } else {
+              logInfo('Cannot show modal- jobs still loading')
+            }}}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg"
           >
             <Plus className="w-5 h-5" />
@@ -203,7 +210,7 @@ export const ApplicationsPage = () => {
         />
 
         {/* Applications List or Empty State */}
-        {loading ? (
+        {appsLoading? (
           <div className="text-center py-16">
             <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading applications...</p>
@@ -243,6 +250,7 @@ export const ApplicationsPage = () => {
       {/* Modals */}
       {showCreateModal && (
         <CreateApplicationModal
+          jobs={jobs}
           onClose={handleCloseModals}
           onApplicationCreated={() => {
             fetchApplications();

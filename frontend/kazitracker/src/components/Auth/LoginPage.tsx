@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Briefcase, Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { apiClient } from '../../api';
+import { apiClient } from '../../api/index';
 import { logError, logInfo } from '../../utils/errorLogger';
 
 interface LoginPageProps {

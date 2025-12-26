@@ -18,8 +18,7 @@ import { InsightPanel } from '../components/Dashboard/InsightPanel';
 import { StatsChart } from '../components/Dashboard/StatsChart';
 import { GoalTracker } from '../components/Dashboard/GoalTracker';
 import { QuickActions } from '../components/Dashboard/QuickActions';
-
-import { BarChart3 } from 'lucide-react';
+import { RejectionAnalysis}  from '../components/Dashboard/RejectionAnalysis';
 import type { NavTab } from '../components/Layout/Sidebar';
 
 interface DashboardPageProps {
@@ -233,6 +232,10 @@ export const DashboardPage = ({ activeTab = 'dashboard' }: DashboardPageProps) =
             interviewCount={stats.interview}
             offerCount={stats.offer}            
           />
+          {/* PHASE 7: Rejection Analysis */}
+          <div className="mt-8">
+            <RejectionAnalysis applications={applications} />
+          </div>  
 
           {/* Recent Activity */}
           <ApplicationTimeline applications={applications} limit={10}/>

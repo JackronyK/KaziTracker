@@ -4,10 +4,10 @@
  * Left sidebar with navigation tabs
  */
 
-import { BarChart3, Briefcase, FileText, CheckSquare, X } from 'lucide-react';
+import { BarChart3, Briefcase, FileText, CheckSquare, X, Zap } from 'lucide-react';
 import { logInfo } from '../../utils/errorLogger';
 
-export type NavTab = 'dashboard' | 'jobs' | 'applications' | 'resumes';
+export type NavTab = 'dashboard' | 'jobs' | 'applications' | 'resumes' | 'premium';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -48,6 +48,13 @@ const NAV_ITEMS: Array<{
     label: 'Resumes',
     icon: <FileText className="w-5 h-5" />,
     description: 'Manage CVs',
+  },
+  {
+    id: 'premium',
+    label: 'Premium Hub',
+    icon: <Zap className="w-5 h-5" />,
+    badge: 'New',
+    description: 'Interviews • Offers • Deadlines • Performance',
   },
 ];
 

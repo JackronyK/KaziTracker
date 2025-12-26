@@ -1,10 +1,5 @@
-/**
- * Enhanced API Client with Comprehensive Error Logging
- * Features: JWT auth, error handling, request/response logging, retry logic
- */
-
+// src/api/index.ts
 import type {
-  LoginRequest,
   TokenResponse,
   User,
   Job,
@@ -15,9 +10,13 @@ import type {
   ApplicationUpdate,
   Resume,
   ApiError,
-} from './types';
-import { API_URL, ERROR_MESSAGES, API_TIMEOUT } from './utils/constants';
-import { logError, logInfo, logWarn, errorLogger } from './utils/errorLogger';
+} from '../types/index'; // adjust path if necessary
+import type {
+  Interview,
+  Offer,
+  Deadline,} from '../types/Premium';
+import { API_URL, ERROR_MESSAGES, API_TIMEOUT } from '../utils/constants';
+import { logError, logInfo, errorLogger } from '../utils/errorLogger';
 
 // =============================================================================
 // API CLIENT CLASS
@@ -37,54 +36,45 @@ class APIClient {
   // =========================================================================
   // TOKEN MANAGEMENT
   // =========================================================================
-
-  /**
-   * Set JWT token
-   */
   setToken(token: string) {
     this.token = token;
-    localStorage.setItem('token', token);
+    try {
+      localStorage.setItem('token', token);
+    } catch {
+      /* noop in SSR / restricted storage */
+    }
     logInfo('Token set successfully');
   }
 
-  /**
-   * Get token from storage
-   */
   private getStoredToken(): string | null {
-    const token = localStorage.getItem('token');
-    return token || null;
+    try {
+      return localStorage.getItem('token') || null;
+    } catch {
+      return null;
+    }
   }
 
-  /**
-   * Get current token
-   */
   getToken(): string | null {
     return this.token || this.getStoredToken();
   }
 
-  /**
-   * Clear token and logout
-   */
   clearToken() {
     this.token = null;
-    localStorage.removeItem('token');
+    try {
+      localStorage.removeItem('token');
+    } catch {
+      /* noop */
+    }
     logInfo('Token cleared - user logged out');
   }
 
-  /**
-   * Check if user is authenticated
-   */
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
 
   // =========================================================================
-  // REQUEST HANDLING
+  // CORE REQUEST HANDLER
   // =========================================================================
-
-  /**
-   * Make API request with error handling
-   */
   private async request<T>(
     method: string,
     endpoint: string,
@@ -92,18 +82,12 @@ class APIClient {
     isFormData: boolean = false
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
 
-    // Add auth token if available
     const token = this.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    // Add content type (unless FormData)
-    if (!isFormData) {
-      headers['Content-Type'] = 'application/json';
-    }
+    if (!isFormData) headers['Content-Type'] = 'application/json';
 
     const config: RequestInit = {
       method,
@@ -114,74 +98,70 @@ class APIClient {
     logInfo(`API Request: ${method} ${endpoint}`);
 
     try {
-      // Set timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(url, {
-        ...config,
-        signal: controller.signal,
-      });
-
+      const response = await fetch(url, { ...config, signal: controller.signal });
       clearTimeout(timeoutId);
 
-      // Parse response
-      const data = await response.json().catch(() => null);
+      // Try parse JSON (may be null)
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
 
-      // Handle errors
       if (!response.ok) {
-        const error = data as ApiError;
+        const error = (data || {}) as ApiError;
         const errorMessage = error.detail || error.message || ERROR_MESSAGES.UNEXPECTED_ERROR;
-        
-        // Log error
+
         logError(`API Error: ${method} ${endpoint}`, undefined, {
           status: response.status,
           message: errorMessage,
           endpoint,
         });
 
-        // Handle specific status codes
         if (response.status === 401) {
           this.clearToken();
         }
 
-        throw new Error(errorMessage);
+        // include body text when available for easier debugging
+        const serverText = typeof data === 'string' ? data : JSON.stringify(data);
+        throw new Error(`${errorMessage} (status ${response.status}) - ${serverText}`);
       }
 
       logInfo(`API Success: ${method} ${endpoint}`, { status: response.status });
       return data as T;
-    } catch (error) {
-      // Handle different error types
-      if (error instanceof TypeError) {
-        logError('Network Error', error, { endpoint, method });
+    } catch (err) {
+      // network / abort
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        logError('Request timeout', err as Error, { endpoint, method });
         throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
       }
 
-      if (error instanceof SyntaxError) {
-        logError('Invalid Response Format', error, { endpoint, method });
+      if (err instanceof TypeError) {
+        logError('Network Error', err as Error, { endpoint, method });
+        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+      }
+
+      if (err instanceof SyntaxError) {
+        logError('Invalid Response Format', err as Error, { endpoint, method });
         throw new Error('Invalid response from server');
       }
 
-      // Re-throw other errors
-      logError(`Request Failed: ${method} ${endpoint}`, error as Error);
-      throw error;
+      logError(`Request Failed: ${method} ${endpoint}`, err as Error);
+      throw err;
     }
   }
 
   // =========================================================================
-  // AUTH ENDPOINTS
+  // AUTH
   // =========================================================================
-
-  /**
-   * Sign up new user
-   */
   async signup(email: string, password: string): Promise<TokenResponse> {
     try {
       logInfo('Signup attempt', { email });
-      const response = await this.request<TokenResponse>('POST', '/api/auth/signup', {
-        email,
-        password,
-      });
+      const response = await this.request<TokenResponse>('POST', '/api/auth/signup', { email, password });
       this.setToken(response.access_token);
       return response;
     } catch (error) {
@@ -190,16 +170,10 @@ class APIClient {
     }
   }
 
-  /**
-   * Login user
-   */
   async login(email: string, password: string): Promise<TokenResponse> {
     try {
       logInfo('Login attempt', { email });
-      const response = await this.request<TokenResponse>('POST', '/api/auth/login', {
-        email,
-        password,
-      });
+      const response = await this.request<TokenResponse>('POST', '/api/auth/login', { email, password });
       this.setToken(response.access_token);
       return response;
     } catch (error) {
@@ -208,9 +182,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get current user info
-   */
   async getCurrentUser(): Promise<User> {
     try {
       return await this.request<User>('GET', '/api/auth/me');
@@ -221,12 +192,8 @@ class APIClient {
   }
 
   // =========================================================================
-  // JOB ENDPOINTS
+  // JOBS
   // =========================================================================
-
-  /**
-   * Create new job
-   */
   async createJob(job: JobInput): Promise<Job> {
     try {
       logInfo('Creating job', { company: job.company, title: job.title });
@@ -237,9 +204,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get all jobs
-   */
   async listJobs(): Promise<Job[]> {
     try {
       return await this.request<Job[]>('GET', '/api/jobs');
@@ -249,9 +213,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get single job
-   */
   async getJob(id: number): Promise<Job> {
     try {
       return await this.request<Job>('GET', `/api/jobs/${id}`);
@@ -261,12 +222,8 @@ class APIClient {
     }
   }
 
-  /**
-   * Update job
-   */
   async updateJob(id: number, job: Partial<JobInput>): Promise<Job> {
     try {
-      logInfo('Updating job', { jobId: id });
       return await this.request<Job>('PATCH', `/api/jobs/${id}`, job);
     } catch (error) {
       logError('Failed to update job', error as Error, { jobId: id });
@@ -274,12 +231,8 @@ class APIClient {
     }
   }
 
-  /**
-   * Delete job
-   */
   async deleteJob(id: number): Promise<void> {
     try {
-      logInfo('Deleting job', { jobId: id });
       await this.request<void>('DELETE', `/api/jobs/${id}`);
     } catch (error) {
       logError('Failed to delete job', error as Error, { jobId: id });
@@ -288,24 +241,11 @@ class APIClient {
   }
 
   // =========================================================================
-  // PARSER ENDPOINT
+  // PARSER
   // =========================================================================
-
-  /**
-   * Parse job description
-   */
-  async parseJD(
-    rawJd: string,
-    url?: string,
-    useLLM: boolean = false
-  ): Promise<ParsedJD> {
+  async parseJD(rawJd: string, url?: string, useLLM: boolean = false): Promise<ParsedJD> {
     try {
-      logInfo('Parsing job description', { useLLM, hasUrl: !!url });
-      return await this.request<ParsedJD>('POST', '/api/parse/jd', {
-        raw_jd: rawJd,
-        url,
-        use_llm: useLLM,
-      });
+      return await this.request<ParsedJD>('POST', '/api/parse/jd', { raw_jd: rawJd, url, use_llm: useLLM });
     } catch (error) {
       logError('Failed to parse job description', error as Error);
       throw error;
@@ -313,15 +253,10 @@ class APIClient {
   }
 
   // =========================================================================
-  // APPLICATION ENDPOINTS (PHASE 4)
+  // APPLICATIONS
   // =========================================================================
-
-  /**
-   * Create application
-   */
   async createApplication(app: ApplicationInput): Promise<Application> {
     try {
-      logInfo('Creating application', { jobId: app.job_id });
       return await this.request<Application>('POST', '/api/applications', app);
     } catch (error) {
       logError('Failed to create application', error as Error);
@@ -329,9 +264,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get all applications
-   */
   async listApplications(): Promise<Application[]> {
     try {
       return await this.request<Application[]>('GET', '/api/applications');
@@ -341,9 +273,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get single application
-   */
   async getApplication(id: number): Promise<Application> {
     try {
       return await this.request<Application>('GET', `/api/applications/${id}`);
@@ -353,12 +282,8 @@ class APIClient {
     }
   }
 
-  /**
-   * Update application (all fields)
-   */
   async updateApplication(id: number, app: ApplicationUpdate): Promise<Application> {
     try {
-      logInfo('Updating application', { appId: id, newStatus: app.status });
       return await this.request<Application>('PATCH', `/api/applications/${id}`, app);
     } catch (error) {
       logError('Failed to update application', error as Error, { appId: id });
@@ -366,22 +291,12 @@ class APIClient {
     }
   }
 
-  /**
-   * Update application status
-   * Convenience method that calls updateApplication with just status
-   */
   async updateApplicationStatus(
     id: number,
     status: string,
-    dates?: {
-      applied_date?: string;
-      interview_date?: string;
-      offer_date?: string;
-      rejected_date?: string;
-    }
+    dates?: { applied_date?: string; interview_date?: string; offer_date?: string; rejected_date?: string }
   ): Promise<Application> {
     try {
-      logInfo('Updating application status', { appId: id, newStatus: status });
       const update: ApplicationUpdate = { status, ...dates };
       return await this.request<Application>('PATCH', `/api/applications/${id}`, update);
     } catch (error) {
@@ -390,12 +305,8 @@ class APIClient {
     }
   }
 
-  /**
-   * Delete application
-   */
   async deleteApplication(id: number): Promise<void> {
     try {
-      logInfo('Deleting application', { appId: id });
       await this.request<void>('DELETE', `/api/applications/${id}`);
     } catch (error) {
       logError('Failed to delete application', error as Error, { appId: id });
@@ -404,22 +315,13 @@ class APIClient {
   }
 
   // =========================================================================
-  // RESUME ENDPOINTS (PHASE 5)
+  // RESUMES
   // =========================================================================
-
-  /**
-   * Upload resume
-   */
   async uploadResume(file: File, tags?: string): Promise<Resume> {
     try {
-      logInfo('Uploading resume', { filename: file.name, size: file.size });
-
       const formData = new FormData();
       formData.append('file', file);
-      if (tags) {
-        formData.append('tags', tags);
-      }
-
+      if (tags) formData.append('tags', tags);
       return await this.request<Resume>('POST', '/api/resumes/upload', formData, true);
     } catch (error) {
       logError('Failed to upload resume', error as Error, { filename: file.name });
@@ -427,9 +329,6 @@ class APIClient {
     }
   }
 
-  /**
-   * Get all resumes
-   */
   async listResumes(): Promise<Resume[]> {
     try {
       return await this.request<Resume[]>('GET', '/api/resumes');
@@ -439,28 +338,18 @@ class APIClient {
     }
   }
 
-  /**
-   * Update resume tags
-   */
   async updateResumeTags(id: number, tags: string[]): Promise<Resume> {
     try {
-      logInfo('Updating resume tags', { resumeId: id, tagCount: tags.length });
       const tagsString = tags.join(',');
-      return await this.request<Resume>('PATCH', `/api/resumes/${id}`, {
-        tags: tagsString,
-      });
+      return await this.request<Resume>('PATCH', `/api/resumes/${id}`, { tags: tagsString });
     } catch (error) {
       logError('Failed to update resume tags', error as Error, { resumeId: id });
       throw error;
     }
   }
 
-  /**
-   * Delete resume
-   */
   async deleteResume(id: number): Promise<void> {
     try {
-      logInfo('Deleting resume', { resumeId: id });
       await this.request<void>('DELETE', `/api/resumes/${id}`);
     } catch (error) {
       logError('Failed to delete resume', error as Error, { resumeId: id });
@@ -469,35 +358,64 @@ class APIClient {
   }
 
   // =========================================================================
-  // UTILITY ENDPOINTS
+  // INTERVIEWS
   // =========================================================================
-
-  /**
-   * Health check
-   */
-  async healthCheck(): Promise<{ status: string }> {
-    try {
-      return await this.request<{ status: string }>('GET', '/health');
-    } catch (error) {
-      logError('Health check failed', error as Error);
-      throw error;
-    }
+  async listInterviews(): Promise<Interview[]> {
+    return this.request<Interview[]>('GET', '/api/interviews');
+  }
+  async createInterview(data: any): Promise<Interview> {
+    return this.request<Interview>('POST', '/api/interviews', data);
+  }
+  async updateInterview(id: number, data: any): Promise<Interview> {
+    return this.request<Interview>('PUT', `/api/interviews/${id}`, data);
+  }
+  async deleteInterview(id: number): Promise<void> {
+    return this.request<void>('DELETE', `/api/interviews/${id}`);
   }
 
   // =========================================================================
-  // DEBUG UTILITIES
+  // OFFERS
   // =========================================================================
+  async listOffers(): Promise<Offer[]> {
+    return this.request<Offer[]>('GET', '/api/offers');
+  }
+  async createOffer(data: any): Promise<Offer> {
+    return this.request<Offer>('POST', '/api/offers', data);
+  }
+  async updateOffer(id: number, data: any): Promise<Offer> {
+    return this.request<Offer>('PUT', `/api/offers/${id}`, data);
+  }
+  async deleteOffer(id: number): Promise<void> {
+    return this.request<void>('DELETE', `/api/offers/${id}`);
+  }
 
-  /**
-   * Get all logs (for debugging)
-   */
+  // =========================================================================
+  // DEADLINES
+  // =========================================================================
+  async listDeadlines(): Promise<Deadline[]> {
+    return this.request<Deadline[]>('GET', '/api/deadlines');
+  }
+  async createDeadline(data: any): Promise<Deadline> {
+    return this.request<Deadline>('POST', '/api/deadlines', data);
+  }
+  async updateDeadline(id: number, data: any): Promise<Deadline> {
+    return this.request<Deadline>('PUT', `/api/deadlines/${id}`, data);
+  }
+  async deleteDeadline(id: number): Promise<void> {
+    return this.request<void>('DELETE', `/api/deadlines/${id}`);
+  }
+
+  // =========================================================================
+  // UTIL
+  // =========================================================================
+  async healthCheck(): Promise<{ status: string }> {
+    return this.request<{ status: string }>('GET', '/health');
+  }
+
   getLogs() {
     return errorLogger.getLogs();
   }
 
-  /**
-   * Clear logs
-   */
   clearLogs() {
     errorLogger.clearLogs();
   }
@@ -508,3 +426,4 @@ class APIClient {
 // =============================================================================
 
 export const apiClient = new APIClient();
+export default apiClient;

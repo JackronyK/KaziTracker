@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import type { Job, JobInput, ParsedJD, UseJobsReturn } from '../types';
-import { apiClient } from '../api';
+import { apiClient } from '../api/index';
 import { logError, logInfo } from '../utils/errorLogger';
 
 export const useJobs = (): UseJobsReturn => {

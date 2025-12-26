@@ -7,10 +7,10 @@
 import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useApplications } from '../../hooks/useApplications';
-import { useJobs } from '../../hooks/useJobs';
 import { logInfo, logError } from '../../utils/errorLogger';
 
 interface CreateApplicationModalProps {
+  jobs: any[];
   onClose: () => void;
   onApplicationCreated: () => void;
 }
@@ -30,11 +30,12 @@ interface CreateApplicationModalProps {
  * - Loading state
  */
 export const CreateApplicationModal = ({
+  jobs,
   onClose,
   onApplicationCreated,
 }: CreateApplicationModalProps) => {
   const { createApplication, loading: appLoading } = useApplications();
-  const { jobs } = useJobs();
+
 
   // State
   const [jobId, setJobId] = useState('');

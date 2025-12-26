@@ -8,20 +8,20 @@
 
 import { useState, useEffect } from 'react';
 import type { User } from './types';
-import { apiClient } from './api';
+import { apiClient } from './api/index';
 import { logError, logInfo } from './utils/errorLogger';
 
 // Components
-import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+
 import { LoginPage } from './components/Auth/LoginPage';
 import { MainLayout } from './components/Layout/MainLayout';
 import { DashboardPage } from './pages/Dashboard';
-import { JobsPage } from './pages/JobsPage'
-import { ApplicationsPage } from './pages/ApplicationsPage'
-import { ResumesPage } from './pages/ResumePage'
-import { Sidebar } from './components/Layout/Sidebar';
+import { JobsPage } from './pages/JobsPage';
+import { ApplicationsPage } from './pages/ApplicationsPage';
+import { ResumesPage } from './pages/ResumePage';
+import { PremiumHub } from './pages/PremiumHub';
 import type { NavTab } from './components/Layout/Sidebar';
-import { UserStar } from 'lucide-react';
+
 
 /**
  * Main App Component
@@ -165,6 +165,12 @@ export default function App() {
 
         {/* Resumes Tab - Phase 5 (Placeholder for now) */}
         {activeTab === 'resumes' && <ResumesPage/>}
+
+        {/* Premium Hub - Phase 7 */}
+        {activeTab === 'premium' && (
+          <PremiumHub
+            onNavigateToDashboard={() => setActiveTab('dashboard')}/>
+        )}
 
         </MainLayout>
   );
