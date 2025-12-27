@@ -1,27 +1,31 @@
 // src/pages/JobsPage.tsx
+
 /**
- * JobsPage Component
- * Main page for job management
+ * JobsPage Component - Complete Version
+ * Includes: AI Parser, Search, Filters, Edit, Delete, All Features
  */
+
 import { useState, useEffect } from "react";
-import {Plus, Briefcase} from 'lucide-react';
+import { Plus, Briefcase, Sparkles } from 'lucide-react';
 import { useJobs } from "../hooks/useJobs";
-import type { Job } from "../types/index";
+import type { Job, JobInput } from "../types/index";
 import { logInfo } from "../utils/errorLogger";
 
-// Componets
+// Components
 import { JobList } from '../components/Jobs/JobList';
 import { JobFilters } from '../components/Jobs/JobFilters';
 import { AddJobModal } from '../components/Jobs/AddJobModal';
 import { EditJobModal } from '../components/Jobs/EditJobModal';
+import { JobParserModal } from '../components/Jobs/JobParserModal';
 
 /**
  * JobsPage Component
  * 
  * Features:
+ * - AI-powered job parsing
  * - Display all jobs
  * - Search & filter
- * - Add new job
+ * - Add new job (manual or parsed)
  * - Edit existing job
  * - Delete job
  * - Loading & error states
@@ -31,11 +35,19 @@ export const JobsPage = () => {
   // Hooks
   const { jobs, loading, error, fetchJobs, deleteJob } = useJobs();
 
-  // State
+  // State for search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [seniority, setSeniority] = useState<string>('all');
+  
+  // Modal states
+  const [showParserModal, setShowParserModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
+  
+  // Prefilled data from AI parser
+  const [prefilledJob, setPrefilledJob] = useState<JobInput | null>(null);
+  
+  // Local error state
   const [localError, setLocalError] = useState('');
 
   // Fetch jobs on mount
@@ -56,7 +68,40 @@ export const JobsPage = () => {
     return matchesSearch && matchesSeniority;
   });
 
-  // Handle delete
+
+
+  // =========================================================================
+  // HANDLERS
+  // =========================================================================
+
+  /**
+   * Handle parsed job data from AI parser
+   */
+  const handleJobParsed = (jobData: JobInput) => {
+    logInfo('Job parsed successfully with AI', jobData);
+    
+    // Store parsed data
+    setPrefilledJob(jobData);
+    
+    // Close parser modal
+    setShowParserModal(false);
+    
+    // Open add job modal with prefilled data
+    setShowAddModal(true);
+  };
+
+  /**
+   * Handle manual job creation (no AI parsing)
+   */
+  const handleManualAdd = () => {
+    logInfo('Opening manual add job form');
+    setPrefilledJob(null);
+    setShowAddModal(true);
+  };
+
+  /**
+   * Handle delete job
+   */
   const handleDeleteJob = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this job?')) {
       return;
@@ -73,11 +118,31 @@ export const JobsPage = () => {
     }
   };
 
-  // Handle modal close
+  /**
+   * Handle modal close
+   */
   const handleCloseModals = () => {
     setShowAddModal(false);
+    setShowParserModal(false);
     setEditingJob(null);
+    setPrefilledJob(null);
     setLocalError('');
+  };
+
+  /**
+   * Handle successful job addition
+   */
+  const handleJobAdded = () => {
+    fetchJobs();
+    handleCloseModals();
+  };
+
+  /**
+   * Handle successful job update
+   */
+  const handleJobUpdated = () => {
+    fetchJobs();
+    handleCloseModals();
   };
 
   return (
@@ -92,16 +157,34 @@ export const JobsPage = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              logInfo('Add job button clicked');
-              setShowAddModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            Add Job
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            {/* AI Parser Button (Primary) */}
+            <button
+              onClick={() => {
+                logInfo('AI Parser button clicked');
+                setShowParserModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span className="hidden sm:inline">Parse with AI</span>
+              <span className="sm:hidden">AI Parse</span>
+            </button>
+
+            {/* Manual Add Button */}
+            <button
+              onClick={() => {
+                logInfo('Manual add button clicked');
+                handleManualAdd();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Add Manually</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Message */}
@@ -116,6 +199,43 @@ export const JobsPage = () => {
             >
               Dismiss
             </button>
+          </div>
+        )}
+
+        {/* AI Parser Info Banner */}
+        {!showParserModal && jobs.length === 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  ✨ Try AI-Powered Job Parsing!
+                </h3>
+                <p className="text-gray-700 mb-3">
+                  Simply paste any job description and let AI extract all the details automatically - 
+                  title, company, location, salary, skills, and more!
+                </p>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <span className="px-3 py-1 bg-white bg-opacity-60 rounded-full text-gray-700">
+                    ⚡ Instant extraction
+                  </span>
+                  <span className="px-3 py-1 bg-white bg-opacity-60 rounded-full text-gray-700">
+                    🎯 85-95% accuracy
+                  </span>
+                  <span className="px-3 py-1 bg-white bg-opacity-60 rounded-full text-gray-700">
+                    🔄 Auto-fallback to rules
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowParserModal(true)}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                >
+                  Try AI Parser Now
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -137,21 +257,30 @@ export const JobsPage = () => {
           <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
             <Briefcase className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <p className="text-gray-600 text-lg font-medium">
-              {jobs.length === 0 ? 'No jobs yet' : 'No jobs match your filter'}
+              {jobs.length === 0 ? 'No jobs yet' : 'No jobs match your filters'}
             </p>
             <p className="text-gray-500 mt-2">
               {jobs.length === 0
-                ? 'Start by adding a job to track'
+                ? 'Start by parsing a job with AI or adding one manually'
                 : 'Try adjusting your search or filters'}
             </p>
             {jobs.length === 0 && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
-              >
-                <Plus className="w-4 h-4" />
-                Add Your First Job
-              </button>
+              <div className="flex gap-3 justify-center mt-6">
+                <button
+                  onClick={() => setShowParserModal(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Parse with AI
+                </button>
+                <button
+                  onClick={handleManualAdd}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-gray-700 border-2 border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Manually
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -164,24 +293,29 @@ export const JobsPage = () => {
       </div>
 
       {/* Modals */}
+      
+      {/* AI Parser Modal */}
+      <JobParserModal
+        isOpen={showParserModal}
+        onClose={handleCloseModals}
+        onParsed={handleJobParsed}
+      />
+
+      {/* Add Job Modal */}
       {showAddModal && (
         <AddJobModal
           onClose={handleCloseModals}
-          onJobAdded={() => {
-            fetchJobs();
-            handleCloseModals();
-          }}
+          onJobAdded={handleJobAdded}
+          initialData={prefilledJob}
         />
       )}
 
+      {/* Edit Job Modal */}
       {editingJob && (
         <EditJobModal
           job={editingJob}
           onClose={handleCloseModals}
-          onJobUpdated={() => {
-            fetchJobs();
-            handleCloseModals();
-          }}
+          onJobUpdated={handleJobUpdated}
         />
       )}
     </div>

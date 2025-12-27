@@ -7,7 +7,14 @@
 import { BarChart3, Briefcase, FileText, CheckSquare, X, Zap } from 'lucide-react';
 import { logInfo } from '../../utils/errorLogger';
 
-export type NavTab = 'dashboard' | 'jobs' | 'applications' | 'resumes' | 'premium';
+export type NavTab = 
+  | 'dashboard' 
+  | 'jobs' 
+  | 'applications' 
+  | 'resumes' 
+  | 'premium'
+  | 'profile'
+  | 'settings';
 
 interface SidebarProps {
   activeTab: NavTab;

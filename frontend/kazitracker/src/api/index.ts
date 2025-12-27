@@ -10,6 +10,8 @@ import type {
   ApplicationUpdate,
   Resume,
   ApiError,
+  ProfileResponse,
+  ProfileUpdateRequest,
 } from '../types/index'; // adjust path if necessary
 import type {
   Interview,
@@ -191,13 +193,52 @@ class APIClient {
     }
   }
 
+
+
+  // =========================================================================
+  // profile update
+  // =========================================================================
+  // In your ApiClient class
+  async updateProfile(profileData: ProfileUpdateRequest): Promise<ProfileResponse> {
+    const response = await fetch(`${this.baseURL}/api/profile/update`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`,
+      },
+      body: JSON.stringify(profileData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update profile');
+    }
+
+    return response.json();
+  }
+
+  async getProfile(): Promise<ProfileResponse> {
+    const response = await fetch(`${this.baseURL}/api/profile/get`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.getToken()}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch profile');
+    }
+
+    return response.json();
+  }
+
   // =========================================================================
   // JOBS
   // =========================================================================
   async createJob(job: JobInput): Promise<Job> {
     try {
       logInfo('Creating job', { company: job.company, title: job.title });
-      return await this.request<Job>('POST', '/api/jobs', job);
+      return await this.request<Job>('POST', '/api/jobs/create', job);
     } catch (error) {
       logError('Failed to create job', error as Error);
       throw error;
@@ -206,7 +247,7 @@ class APIClient {
 
   async listJobs(): Promise<Job[]> {
     try {
-      return await this.request<Job[]>('GET', '/api/jobs');
+      return await this.request<Job[]>('GET', '/api/jobs/list');
     } catch (error) {
       logError('Failed to fetch jobs', error as Error);
       throw error;
@@ -215,7 +256,7 @@ class APIClient {
 
   async getJob(id: number): Promise<Job> {
     try {
-      return await this.request<Job>('GET', `/api/jobs/${id}`);
+      return await this.request<Job>('GET', `/api/jobs/get/${id}`);
     } catch (error) {
       logError('Failed to fetch job', error as Error, { jobId: id });
       throw error;
@@ -224,7 +265,7 @@ class APIClient {
 
   async updateJob(id: number, job: Partial<JobInput>): Promise<Job> {
     try {
-      return await this.request<Job>('PATCH', `/api/jobs/${id}`, job);
+      return await this.request<Job>('PATCH', `/api/jobs/update/${id}`, job);
     } catch (error) {
       logError('Failed to update job', error as Error, { jobId: id });
       throw error;
@@ -233,7 +274,7 @@ class APIClient {
 
   async deleteJob(id: number): Promise<void> {
     try {
-      await this.request<void>('DELETE', `/api/jobs/${id}`);
+      await this.request<void>('DELETE', `/api/jobs/delete/${id}`);
     } catch (error) {
       logError('Failed to delete job', error as Error, { jobId: id });
       throw error;
@@ -257,7 +298,7 @@ class APIClient {
   // =========================================================================
   async createApplication(app: ApplicationInput): Promise<Application> {
     try {
-      return await this.request<Application>('POST', '/api/applications', app);
+      return await this.request<Application>('POST', '/api/applications/create', app);
     } catch (error) {
       logError('Failed to create application', error as Error);
       throw error;
@@ -266,7 +307,7 @@ class APIClient {
 
   async listApplications(): Promise<Application[]> {
     try {
-      return await this.request<Application[]>('GET', '/api/applications');
+      return await this.request<Application[]>('GET', '/api/applications/list');
     } catch (error) {
       logError('Failed to fetch applications', error as Error);
       throw error;
@@ -275,7 +316,7 @@ class APIClient {
 
   async getApplication(id: number): Promise<Application> {
     try {
-      return await this.request<Application>('GET', `/api/applications/${id}`);
+      return await this.request<Application>('GET', `/api/applications/get/${id}`);
     } catch (error) {
       logError('Failed to fetch application', error as Error, { appId: id });
       throw error;
@@ -284,7 +325,7 @@ class APIClient {
 
   async updateApplication(id: number, app: ApplicationUpdate): Promise<Application> {
     try {
-      return await this.request<Application>('PATCH', `/api/applications/${id}`, app);
+      return await this.request<Application>('PATCH', `/api/applications/update/${id}`, app);
     } catch (error) {
       logError('Failed to update application', error as Error, { appId: id });
       throw error;
@@ -298,7 +339,7 @@ class APIClient {
   ): Promise<Application> {
     try {
       const update: ApplicationUpdate = { status, ...dates };
-      return await this.request<Application>('PATCH', `/api/applications/${id}`, update);
+      return await this.request<Application>('PATCH', `/api/applications/update/${id}`, update);
     } catch (error) {
       logError('Failed to update application status', error as Error, { appId: id });
       throw error;
@@ -307,7 +348,7 @@ class APIClient {
 
   async deleteApplication(id: number): Promise<void> {
     try {
-      await this.request<void>('DELETE', `/api/applications/${id}`);
+      await this.request<void>('DELETE', `/api/applications/delete/${id}`);
     } catch (error) {
       logError('Failed to delete application', error as Error, { appId: id });
       throw error;
@@ -331,7 +372,7 @@ class APIClient {
 
   async listResumes(): Promise<Resume[]> {
     try {
-      return await this.request<Resume[]>('GET', '/api/resumes');
+      return await this.request<Resume[]>('GET', '/api/resumes/list');
     } catch (error) {
       logError('Failed to fetch resumes', error as Error);
       throw error;
@@ -341,7 +382,7 @@ class APIClient {
   async updateResumeTags(id: number, tags: string[]): Promise<Resume> {
     try {
       const tagsString = tags.join(',');
-      return await this.request<Resume>('PATCH', `/api/resumes/${id}`, { tags: tagsString });
+      return await this.request<Resume>('PATCH', `/api/resumes/update/${id}`, { tags: tagsString });
     } catch (error) {
       logError('Failed to update resume tags', error as Error, { resumeId: id });
       throw error;
@@ -350,7 +391,7 @@ class APIClient {
 
   async deleteResume(id: number): Promise<void> {
     try {
-      await this.request<void>('DELETE', `/api/resumes/${id}`);
+      await this.request<void>('DELETE', `/api/resumes/delete/${id}`);
     } catch (error) {
       logError('Failed to delete resume', error as Error, { resumeId: id });
       throw error;
@@ -361,48 +402,48 @@ class APIClient {
   // INTERVIEWS
   // =========================================================================
   async listInterviews(): Promise<Interview[]> {
-    return this.request<Interview[]>('GET', '/api/interviews');
+    return this.request<Interview[]>('GET', '/api/interviews/list');
   }
   async createInterview(data: any): Promise<Interview> {
-    return this.request<Interview>('POST', '/api/interviews', data);
+    return this.request<Interview>('POST', '/api/interviews/create', data);
   }
   async updateInterview(id: number, data: any): Promise<Interview> {
-    return this.request<Interview>('PUT', `/api/interviews/${id}`, data);
+    return this.request<Interview>('PUT', `/api/interviews/update/${id}`, data);
   }
   async deleteInterview(id: number): Promise<void> {
-    return this.request<void>('DELETE', `/api/interviews/${id}`);
+    return this.request<void>('DELETE', `/api/interviews/delete/${id}`);
   }
 
   // =========================================================================
   // OFFERS
   // =========================================================================
   async listOffers(): Promise<Offer[]> {
-    return this.request<Offer[]>('GET', '/api/offers');
+    return this.request<Offer[]>('GET', '/api/offers/list');
   }
   async createOffer(data: any): Promise<Offer> {
-    return this.request<Offer>('POST', '/api/offers', data);
+    return this.request<Offer>('POST', '/api/offers/create', data);
   }
   async updateOffer(id: number, data: any): Promise<Offer> {
-    return this.request<Offer>('PUT', `/api/offers/${id}`, data);
+    return this.request<Offer>('PUT', `/api/offers/update/${id}`, data);
   }
   async deleteOffer(id: number): Promise<void> {
-    return this.request<void>('DELETE', `/api/offers/${id}`);
+    return this.request<void>('DELETE', `/api/offers/delete/${id}`);
   }
 
   // =========================================================================
   // DEADLINES
   // =========================================================================
   async listDeadlines(): Promise<Deadline[]> {
-    return this.request<Deadline[]>('GET', '/api/deadlines');
+    return this.request<Deadline[]>('GET', '/api/deadlines/list');
   }
   async createDeadline(data: any): Promise<Deadline> {
-    return this.request<Deadline>('POST', '/api/deadlines', data);
+    return this.request<Deadline>('POST', '/api/deadlines/create', data);
   }
   async updateDeadline(id: number, data: any): Promise<Deadline> {
-    return this.request<Deadline>('PUT', `/api/deadlines/${id}`, data);
+    return this.request<Deadline>('PUT', `/api/deadlines/update/${id}`, data);
   }
   async deleteDeadline(id: number): Promise<void> {
-    return this.request<void>('DELETE', `/api/deadlines/${id}`);
+    return this.request<void>('DELETE', `/api/deadlines/delete/${id}`);
   }
 
   // =========================================================================

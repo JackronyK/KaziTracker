@@ -12,3 +12,4 @@ pdfminer.six
 python-docx
 python-multipart
 alembic
+google-genai

@@ -2,7 +2,7 @@
 // src/App.tsx
 
 /**
- * Main App Component - Phase 2
+ * Main App Component 
  * Updated with proper routing and layout
  */
 
@@ -12,11 +12,11 @@ import { apiClient } from './api/index';
 import { logError, logInfo } from './utils/errorLogger';
 
 // Components
-
 import { LoginPage } from './components/Auth/LoginPage';
 import { MainLayout } from './components/Layout/MainLayout';
 import { DashboardPage } from './pages/Dashboard';
 import { JobsPage } from './pages/JobsPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
 import { ResumesPage } from './pages/ResumePage';
 import { PremiumHub } from './pages/PremiumHub';
@@ -31,6 +31,7 @@ import type { NavTab } from './components/Layout/Sidebar';
  * - Shows LoginPage if not authenticated
  * - Shows MainLayout with content if authenticated
  * - Handles logout and navigation
+ * - Listens to navigation events from components
  */
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
 
   // =========================================================================
@@ -80,27 +82,100 @@ export default function App() {
     checkAuth();
   }, []);
 
-    // =========================================================================
+  
+  // =========================================================================
+  // NAVIGATION EVENT LISTENER - THIS IS THE KEY FIX!
+  // =========================================================================
+
+  useEffect(() => {
+    // Listen for navigation events from useNavigation hook and other components
+    const handleNavigationEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tab: NavTab }>;
+      const { tab } = customEvent.detail;
+      
+      if (tab && tab !== activeTab) {
+        logInfo('Navigation event received in App.tsx', { tab });
+        setActiveTab(tab);
+        
+        // Update sessionStorage to keep in sync
+        sessionStorage.setItem('activeTab', tab);
+        
+        // Update URL hash
+        window.location.hash = tab;
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('navigate', handleNavigationEvent);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('navigate', handleNavigationEvent);
+    };
+  }, [activeTab]);
+
+  // =========================================================================
+  // INITIALIZE ACTIVE TAB FROM STORAGE/HASH ON MOUNT
+  // =========================================================================
+
+  useEffect(() => {
+    // Check sessionStorage first
+    const storedTab = sessionStorage.getItem('activeTab') as NavTab;
+    if (storedTab) {
+      setActiveTab(storedTab);
+      return;
+    }
+
+    // Check URL hash
+    const hash = window.location.hash.replace('#', '') as NavTab;
+    if (hash) {
+      setActiveTab(hash);
+      sessionStorage.setItem('activeTab', hash);
+    }
+  }, []);
+
+  // =========================================================================
   // EVENT HANDLERS
   // =========================================================================
 
   /**
    * Handle successful login
    */
-  const handleLogSuccess = (token: string) => {
-    logInfo('Login Successful');
+  const handleLoginSuccess = (token: string) => {
+    logInfo('Login successful');
     apiClient.setToken(token);
     setIsAuthenticated(true);
 
-    // Fetch user info after login
+    // Fetch user data
     apiClient
       .getCurrentUser()
       .then((userData) => {
         setUser(userData);
-        logInfo('User data loaded', { email: userData.email });
+        
+        // Check if profile is complete
+        if (!userData.full_name) {
+          setShowProfileSetup(true);
+        } else {
+          setShowProfileSetup(false);
+        }
       })
       .catch((error) => {
-        logError('Failed to  fetch user data after login', error as Error);
+        logError('Failed to fetch user data', error);
+      });
+  };
+
+  const handleProfileComplete = () => {
+    logInfo('Profile setup complete');
+    setShowProfileSetup(false);
+    
+    // Refresh user data
+    apiClient
+      .getProfile()
+      .then((userData) => {
+        setUser(userData);
+      })
+      .catch((error) => {
+        logError('Failed to fetch updated profile', error);
       });
   };
 
@@ -113,14 +188,32 @@ export default function App() {
     setIsAuthenticated(false);
     setUser(null);
     setActiveTab('dashboard');
+    
+    // Clear session storage
+    sessionStorage.removeItem('activeTab');
+    sessionStorage.removeItem('previousTab');
   };
+
   /**
-   * Handle navigation change
+   * Handle navigation change from MainLayout
    */
   const handleNavChange = (tab: NavTab) => {
+    logInfo('Navigation change from MainLayout', { tab });
+    
+    // Store previous tab
+    sessionStorage.setItem('previousTab', activeTab);
+    
+    // Update active tab
     setActiveTab(tab);
-    logInfo('Navigation changed', { tab });
+    sessionStorage.setItem('activeTab', tab);
+    
+    // Update URL hash
+    window.location.hash = tab;
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
   // =========================================================================
   // RENDER: LOADING STATE
   // =========================================================================
@@ -141,8 +234,17 @@ export default function App() {
   // =========================================================================
 
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLogSuccess}/>;
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
+
+  // =========================================================================
+  // RENDER: AUTHENTICATED BUT PROFILE INCOMPLETE
+  // =========================================================================
+
+  if (showProfileSetup) {
+    return <ProfilePage user={user} onComplete={handleProfileComplete} />;
+  }
+
   // =========================================================================
   // RENDER: AUTHENTICATED - SHOW MAIN LAYOUT + CONTENT
   // =========================================================================
@@ -153,25 +255,28 @@ export default function App() {
       onLogout={handleLogout}
       activeTab={activeTab}
       onNavChange={handleNavChange}
-      >
-        {/* Page Content Based on Active Tab */}
-        {activeTab === 'dashboard' && <DashboardPage activeTab={activeTab} />}
+    >
+      {/* Page Content Based on Active Tab */}
+      {activeTab === 'dashboard' && (
+        <DashboardPage 
+          activeTab={activeTab}
+          onNavigate={handleNavChange}
+        />
+      )}
 
-        {/* Jobs Tab - Phase 3 */}
-        {activeTab === 'jobs' && <JobsPage /> }
+      {/* Jobs Tab */}
+      {activeTab === 'jobs' && <JobsPage />}
 
-        {/* Applications Tab - Phase 4 */}
-        {activeTab == 'applications' && <ApplicationsPage />}
+      {/* Applications Tab */}
+      {activeTab === 'applications' && <ApplicationsPage />}
 
-        {/* Resumes Tab - Phase 5 (Placeholder for now) */}
-        {activeTab === 'resumes' && <ResumesPage/>}
+      {/* Resumes Tab */}
+      {activeTab === 'resumes' && <ResumesPage />}
 
-        {/* Premium Hub - Phase 7 */}
-        {activeTab === 'premium' && (
-          <PremiumHub
-            onNavigateToDashboard={() => setActiveTab('dashboard')}/>
-        )}
-
-        </MainLayout>
+      {/* Premium Hub */}
+      {activeTab === 'premium' && (
+        <PremiumHub onNavigateToDashboard={() => handleNavChange('dashboard')} />
+      )}
+    </MainLayout>
   );
 }

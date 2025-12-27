@@ -48,7 +48,7 @@ export const EditJobModal = ({
     seniority_level: job.seniority_level,
     tech_stack: job.tech_stack || [],
     description: job.description || '',
-    application_link: job.application_link || '',
+    application_link: job.apply_url || '',
   });
 
   const [newTech, setNewTech] = useState('');
@@ -106,7 +106,7 @@ export const EditJobModal = ({
         location: formData.location,
         salary_range: formData.salary_range,
         experience_required: formData.experience_required,
-        seniority_level: formData.seniority_level,
+        seniority_levels: formData.seniority_level,
         tech_stack: formData.tech_stack,
         description: formData.description,
         application_link: formData.application_link,

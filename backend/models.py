@@ -16,6 +16,35 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     password_hash: str
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=True)
+
+    # ✅ NEW: Profile fields
+    full_name: Optional[str] = Field(
+        default=None,
+        nullable=True,
+        description="User's full name"
+    )
+    phone_number: Optional[str] = Field(
+        default=None,
+        nullable=True,
+        description="User's phone number"
+    )
+    location: Optional[str] = Field(
+        default=None,
+        nullable=True,
+        description="User's location (City, Country)"
+    )
+    headline: Optional[str] = Field(
+        default=None,
+        nullable=True,
+        description="Professional headline"
+    )
+    
+    # ✅ FUTURE: Profile expansion fields (commented out for now)
+    # education: Optional[str] = Field(default=None)  # JSON array
+    # skills: Optional[str] = Field(default=None)  # JSON array
+    # work_experience: Optional[str] = Field(default=None)  # JSON array
+    # profile_picture_url: Optional[str] = Field(default=None)
     
     # Relationships defined with back_populates
     jobs: list["Job"] = Relationship(back_populates="user")
@@ -55,7 +84,10 @@ class Job(SQLModel, table=True):
     
     # Relationships
     user: User = Relationship(back_populates="jobs")
-    applications: list["Application"] = Relationship(back_populates="job")
+    applications: list["Application"] = Relationship(
+        back_populates="job",
+        sa_relationship_kwargs={"cascade": "all, delete"}
+    )
 
 
 # ============================================================================

@@ -60,7 +60,7 @@ export const JobCard = ({ job, onEdit, onDelete }: JobCardProps) => {
           <p className="text-gray-600 font-medium">{job.company}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ml-2 ${getSeniorityColor(job.seniority_level)}`}>
-          {job.seniority_levels}
+          {job.seniority_level}
         </span>
       </div>
 
