@@ -1,12 +1,11 @@
-// src/components/Layout/Sidebar.tsx
 
-/**
- * Sidebar Navigation Component - ENHANCED
- * Collapsible left sidebar with smooth drawer animation
- */
+// ============================================================================
+// src/components/Layout/Sidebar.tsx
+// ============================================================================
 
 import { BarChart3, Briefcase, FileText, CheckSquare, X, Zap, ChevronRight } from 'lucide-react';
 import { logInfo } from '../../utils/errorLogger';
+import { useEffect, useState } from 'react';
 
 export type NavTab = 
   | 'dashboard' 
@@ -25,9 +24,6 @@ interface SidebarProps {
   isDarkMode?: boolean;
 }
 
-/**
- * Navigation items configuration
- */
 const NAV_ITEMS: Array<{
   id: NavTab;
   label: string;
@@ -68,27 +64,6 @@ const NAV_ITEMS: Array<{
   },
 ];
 
-/**
- * Enhanced Sidebar Component
- * 
- * Features:
- * ✅ Smooth drawer animation
- * ✅ Mobile overlay
- * ✅ Responsive design
- * ✅ Active state highlighting
- * ✅ Dark mode support
- * ✅ Smooth transitions
- * ✅ Mobile-first approach
- * 
- * Usage:
- * <Sidebar 
- *   activeTab={activeTab} 
- *   onTabChange={setActiveTab}
- *   isOpen={mobileMenuOpen}
- *   onClose={closeMobileMenu}
- *   isDarkMode={isDark}
- * />
- */
 export const Sidebar = ({ 
   activeTab, 
   onTabChange, 
@@ -96,71 +71,103 @@ export const Sidebar = ({
   onClose,
   isDarkMode = false
 }: SidebarProps) => {
-  
+  const [startX, setStartX] = useState(0);
+
   const handleTabChange = (tab: NavTab) => {
     logInfo('Navigation tab changed', { tab });
     onTabChange(tab);
     onClose?.();
   };
 
+  // Handle touch swipe to close drawer
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      setStartX(e.touches[0].clientX);
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const endX = e.changedTouches[0].clientX;
+      if (endX - startX > 50 && startX < 50) {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, false);
+    document.addEventListener('touchend', handleTouchEnd, false);
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen, startX, onClose]);
+
   return (
     <>
-      {/* ================================================================= */ }
-      {/* MOBILE OVERLAY - Dismiss drawer when clicked                      */ }
-      {/* ================================================================= */ }
+      {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden transition-opacity duration-200"
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
           onClick={onClose}
           aria-hidden="true"
+          style={{ animation: 'fadeIn 0.3s ease-out' }}
         />
       )}
 
-      {/* ================================================================= */}
-      {/* SIDEBAR CONTAINER - Smooth drawer animation                       */}
-      {/* ================================================================= */}
+      {/* Sidebar - FIXED: Now properly positioned on desktop */}
       <aside
         className={`
-          fixed left-0 top-16 bottom-0 w-64 z-30
-          transition-all duration-300 ease-out
-          lg:relative lg:top-0 lg:translate-x-0 lg:w-auto
+          w-64 flex-shrink-0 z-30 lg:z-auto
+          bg-white dark:bg-gray-900
+          border-r border-gray-200 dark:border-gray-800
+          
+          /* Mobile: Fixed overlay drawer */
+          fixed left-0 top-16 bottom-0 lg:top-0
+          shadow-lg lg:shadow-none
+          
+          /* Desktop: Normal flow */
+          lg:relative lg:w-64 lg:flex-shrink-0
+          
+          transition-transform duration-300 ease-out lg:transition-none
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isDarkMode 
-            ? 'bg-gray-900 border-gray-800' 
-            : 'bg-white border-gray-200'
-          }
-          border-r shadow-lg lg:shadow-none
         `}
+        style={{
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+        }}
       >
-        {/* Close Button (Mobile Only) */}
+        {/* Close Button (Mobile only) */}
         <button
           onClick={onClose}
-          className={`absolute top-4 right-4 lg:hidden p-2 rounded-lg transition ${
-            isDarkMode
-              ? 'hover:bg-gray-800 text-gray-400'
+          className={`
+            absolute top-4 right-4 lg:hidden p-2 rounded-lg transition
+            ${isDarkMode
+              ? 'hover:bg-gray-800 text-gray-400 hover:text-gray-300'
               : 'hover:bg-gray-100 text-gray-600'
-          }`}
+            }
+          `}
           aria-label="Close sidebar"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Navigation */}
+        {/* Navigation Content */}
         <nav className="flex flex-col h-full p-4 pt-6 lg:pt-4 overflow-y-auto">
           
-          {/* Logo Area (Mobile Only) */}
+          {/* Logo Area (Mobile only) */}
           <div className="mb-6 lg:hidden">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
-                <span className="text-white font-bold">💼</span>
+                <span className="text-white font-bold text-lg">💼</span>
               </div>
               <div>
-                <p className={`font-bold transition-colors ${
+                <p className={`font-bold text-sm ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                   KaziTracker
                 </p>
-                <p className={`text-xs transition-colors ${
+                <p className={`text-xs ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                   Job Tracker
@@ -179,52 +186,40 @@ export const Sidebar = ({
                   key={item.id}
                   onClick={() => handleTabChange(item.id)}
                   className={`
-                    w-full text-left px-4 py-3 rounded-lg transition
+                    w-full text-left px-4 py-3 rounded-lg transition-all
                     flex items-center gap-3 group relative
                     ${
                       isActive
                         ? isDarkMode
-                          ? 'bg-blue-900/30 border-l-4 border-blue-500'
-                          : 'bg-blue-50 border-l-4 border-blue-600'
+                          ? 'bg-blue-900/40 border-l-4 border-blue-500 text-blue-400'
+                          : 'bg-blue-50 border-l-4 border-blue-600 text-blue-600'
                         : `border-l-4 border-transparent ${
                             isDarkMode
-                              ? 'hover:bg-gray-800'
-                              : 'hover:bg-gray-50'
+                              ? 'hover:bg-gray-800/50 text-gray-400 hover:text-gray-300'
+                              : 'hover:bg-gray-100 text-gray-600'
                           }`
                     }
                   `}
                 >
                   {/* Icon */}
-                  <span
-                    className={`transition-colors ${
-                      isActive
-                        ? isDarkMode
-                          ? 'text-blue-400'
-                          : 'text-blue-600'
-                        : isDarkMode
-                        ? 'text-gray-400 group-hover:text-gray-300'
-                        : 'text-gray-400 group-hover:text-gray-600'
-                    }`}
-                  >
+                  <span className={`flex-shrink-0 transition-colors ${
+                    isActive
+                      ? isDarkMode
+                        ? 'text-blue-400'
+                        : 'text-blue-600'
+                      : isDarkMode
+                      ? 'text-gray-500 group-hover:text-gray-400'
+                      : 'text-gray-400 group-hover:text-gray-600'
+                  }`}>
                     {item.icon}
                   </span>
 
                   {/* Label & Description */}
                   <div className="min-w-0 flex-1">
-                    <p
-                      className={`font-medium text-sm transition-colors ${
-                        isActive
-                          ? isDarkMode
-                            ? 'text-blue-400'
-                            : 'text-blue-600'
-                          : isDarkMode
-                          ? 'text-gray-300 group-hover:text-gray-200'
-                          : 'text-gray-700 group-hover:text-gray-900'
-                      }`}
-                    >
+                    <p className={`font-medium text-sm`}>
                       {item.label}
                     </p>
-                    <p className={`text-xs truncate transition-colors ${
+                    <p className={`text-xs truncate ${
                       isDarkMode ? 'text-gray-500' : 'text-gray-500'
                     }`}>
                       {item.description}
@@ -233,16 +228,14 @@ export const Sidebar = ({
 
                   {/* Badge */}
                   {item.badge && (
-                    <span className="ml-auto px-2 py-1 bg-red-500/20 text-red-500 text-xs rounded-full font-bold">
+                    <span className="ml-auto px-2 py-1 bg-red-500/20 text-red-500 dark:text-red-400 text-xs rounded-full font-bold flex-shrink-0">
                       {item.badge}
                     </span>
                   )}
 
-                  {/* Active Indicator (Right) */}
+                  {/* Active Indicator */}
                   {isActive && (
-                    <ChevronRight className={`ml-auto w-4 h-4 transition-colors ${
-                      isDarkMode ? 'text-blue-400' : 'text-blue-600'
-                    }`} />
+                    <ChevronRight className="ml-auto w-4 h-4 flex-shrink-0" />
                   )}
                 </button>
               );
@@ -250,21 +243,21 @@ export const Sidebar = ({
           </div>
 
           {/* Bottom Section */}
-          <div className={`pt-4 border-t transition-colors ${
+          <div className={`pt-4 border-t ${
             isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          } space-y-2`}>
+          } space-y-2 mt-auto`}>
             {/* Version Info */}
-            <div className={`px-4 py-3 rounded-lg transition-colors ${
+            <div className={`px-4 py-3 rounded-lg ${
               isDarkMode
-                ? 'bg-gray-800 text-gray-300'
+                ? 'bg-gray-800/50 text-gray-300'
                 : 'bg-gray-50 text-gray-700'
             }`}>
-              <p className={`text-xs font-medium transition-colors ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              <p className={`text-xs font-medium ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>
                 Version
               </p>
-              <p className={`text-sm font-semibold transition-colors ${
+              <p className={`text-sm font-semibold ${
                 isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}>
                 v0.1.0
@@ -276,8 +269,8 @@ export const Sidebar = ({
               onClick={() => logInfo('Help clicked from sidebar')}
               className={`w-full text-left px-4 py-2 text-sm rounded-lg transition ${
                 isDarkMode
-                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-gray-500 hover:text-gray-400 hover:bg-gray-800/50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               ❓ Need Help?
@@ -285,6 +278,19 @@ export const Sidebar = ({
           </div>
         </nav>
       </aside>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        aside {
+          will-change: transform;
+          -webkit-font-smoothing: antialiased;
+        }
+      `}</style>
     </>
   );
 };

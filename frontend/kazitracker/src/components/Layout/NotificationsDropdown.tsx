@@ -1,13 +1,8 @@
 // src/components/Layout/NotificationsDropdown.tsx
 
-/**
- * Notifications Dropdown Component - PRODUCTION READY
- * Shows approaching deadlines, interviews, and offers
- */
-
 import { Bell, X, AlertCircle, Calendar, DollarSign, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { logInfo } from '../../utils/errorLogger';
+import { logInfo, logError } from '../../utils/errorLogger';
 
 interface Notification {
   id: string;
@@ -17,38 +12,15 @@ interface Notification {
   dueDate: string;
   priority: 'high' | 'medium' | 'low';
   icon: React.ReactNode;
-  color: string;
 }
 
 interface NotificationsDropdownProps {
   isDarkMode?: boolean;
-  deadlines?: any[]; // From useDeadlines hook
-  interviews?: any[]; // From useInterviews hook
-  offers?: any[]; // From useOffers hook
+  deadlines?: any[];
+  interviews?: any[];
+  offers?: any[];
 }
 
-/**
- * NotificationsDropdown Component
- * 
- * Features:
- * ✅ Real notifications from hooks
- * ✅ Approaching deadline alerts
- * ✅ Interview reminders
- * ✅ Offer notifications
- * ✅ Priority-based sorting
- * ✅ Click to dismiss
- * ✅ Mark as read
- * ✅ Dark mode support
- * ✅ Responsive design
- * 
- * Usage:
- * <NotificationsDropdown
- *   deadlines={deadlineHooks.deadlines}
- *   interviews={interviewHooks.interviews}
- *   offers={offerHooks.offers}
- *   isDarkMode={isDarkMode}
- * />
- */
 export const NotificationsDropdown = ({
   isDarkMode = false,
   deadlines = [],
@@ -58,98 +30,206 @@ export const NotificationsDropdown = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
-  // Calculate notifications from real data
+  // Calculate notifications
   useEffect(() => {
     const allNotifications: Notification[] = [];
+    const debug = {
+      deadlinesReceived: deadlines?.length || 0,
+      interviewsReceived: interviews?.length || 0,
+      offersReceived: offers?.length || 0,
+      deadlinesSample: deadlines?.[0],
+    };
 
-    // Process deadlines (approaching in next 7 days)
-    if (deadlines && Array.isArray(deadlines)) {
-      deadlines.forEach((deadline) => {
-        try {
-          const dueDate = new Date(deadline.due_date);
-          const today = new Date();
-          const daysUntil = Math.ceil(
-            (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-          );
+    console.log('📢 Notifications component received:', debug);
 
-          if (daysUntil >= 0 && daysUntil <= 7) {
-            const priority =
-              daysUntil <= 1 ? 'high' : daysUntil <= 3 ? 'medium' : 'low';
+    try {
+      // ===== PROCESS DEADLINES =====
+      if (deadlines && Array.isArray(deadlines) && deadlines.length > 0) {
+        console.log('📌 Processing deadlines:', deadlines);
+        
+        deadlines.forEach((deadline, idx) => {
+          try {
+            // Try all possible field names for date
+            let dueDate = null;
+            let dateFieldUsed = '';
 
-            allNotifications.push({
-              id: `deadline-${deadline.id}`,
-              type: 'deadline',
-              title: `Deadline: ${deadline.title || 'Upcoming deadline'}`,
-              description: `Due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
-              dueDate: deadline.due_date,
-              priority,
-              icon: <AlertCircle className="w-5 h-5" />,
-              color: 'bg-red-50 text-red-700',
-            });
+            const dateFields = [
+              'due_date', 'dueDate', 'deadline_date', 'date', 
+              'deadline', 'endDate', 'scheduled_date', 'target_date'
+            ];
+
+            for (const field of dateFields) {
+              if (deadline[field]) {
+                dueDate = new Date(deadline[field]);
+                dateFieldUsed = field;
+                
+                // Validate the date
+                if (!isNaN(dueDate.getTime())) {
+                  break;
+                } else {
+                  dueDate = null;
+                }
+              }
+            }
+
+            if (!dueDate || isNaN(dueDate.getTime())) {
+              console.warn('⚠️ Skipping deadline with invalid date:', deadline);
+              return;
+            }
+
+            // Normalize dates to start of day for proper comparison
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+
+            const daysUntil = Math.ceil(
+              (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            );
+
+            console.log(`📌 Deadline: ${deadline.title || 'Untitled'}, Days until: ${daysUntil}`);
+
+            // Show deadlines within 7 days (including overdue)
+            if (daysUntil >= -1 && daysUntil <= 7) {
+              const priority =
+                daysUntil < 0 ? 'high' :
+                daysUntil === 0 ? 'high' :
+                daysUntil <= 1 ? 'high' :
+                daysUntil <= 3 ? 'medium' :
+                'low';
+
+              const title = deadline.title || deadline.name || 'Upcoming deadline';
+              let description = '';
+
+              if (daysUntil < 0) {
+                description = `Overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''}`;
+              } else if (daysUntil === 0) {
+                description = 'Due today!';
+              } else {
+                description = `Due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+              }
+
+              allNotifications.push({
+                id: `deadline-${deadline.id || idx}`,
+                type: 'deadline',
+                title: `📌 ${title}`,
+                description,
+                dueDate: dueDate.toISOString(),
+                priority,
+                icon: <AlertCircle className="w-5 h-5" />,
+              });
+
+              console.log('✅ Added deadline notification:', { title, daysUntil, dateFieldUsed });
+            }
+          } catch (err) {
+            console.error('❌ Error processing deadline:', err, deadline);
           }
-        } catch (err) {
-          console.error('Error processing deadline:', err);
-        }
-      });
-    }
+        });
+      } else {
+        console.warn('⚠️ No deadlines received or not an array');
+      }
 
-    // Process interviews (upcoming in next 3 days)
-    if (interviews && Array.isArray(interviews)) {
-      interviews.forEach((interview) => {
-        try {
-          const interviewDate = new Date(interview.date);
-          const today = new Date();
-          const daysUntil = Math.ceil(
-            (interviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-          );
+      // ===== PROCESS INTERVIEWS =====
+      if (interviews && Array.isArray(interviews) && interviews.length > 0) {
+        console.log('🗓️ Processing interviews:', interviews);
+        
+        interviews.forEach((interview, idx) => {
+          try {
+            let interviewDate = null;
+            const dateFields = ['date', 'interview_date', 'scheduled_date', 'start_date'];
 
-          if (daysUntil > 0 && daysUntil <= 3) {
-            allNotifications.push({
-              id: `interview-${interview.id}`,
-              type: 'interview',
-              title: `Interview Reminder: ${interview.job_title || 'Upcoming interview'}`,
-              description: `Interview in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
-              dueDate: interview.date,
-              priority: 'high',
-              icon: <Calendar className="w-5 h-5" />,
-              color: 'bg-blue-50 text-blue-700',
-            });
+            for (const field of dateFields) {
+              if (interview[field]) {
+                interviewDate = new Date(interview[field]);
+                if (!isNaN(interviewDate.getTime())) {
+                  break;
+                } else {
+                  interviewDate = null;
+                }
+              }
+            }
+
+            if (!interviewDate || isNaN(interviewDate.getTime())) {
+              return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            interviewDate.setHours(0, 0, 0, 0);
+
+            const daysUntil = Math.ceil(
+              (interviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            );
+
+            // Show interviews within 3 days
+            if (daysUntil > 0 && daysUntil <= 3) {
+              const jobTitle = interview.job_title || interview.position || 'Interview';
+              
+              allNotifications.push({
+                id: `interview-${interview.id || idx}`,
+                type: 'interview',
+                title: `🗓️ Interview: ${jobTitle}`,
+                description: `Interview in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+                dueDate: interviewDate.toISOString(),
+                priority: 'high',
+                icon: <Calendar className="w-5 h-5" />,
+              });
+
+              console.log('✅ Added interview notification:', { jobTitle, daysUntil });
+            }
+          } catch (err) {
+            console.error('❌ Error processing interview:', err);
           }
-        } catch (err) {
-          console.error('Error processing interview:', err);
-        }
-      });
-    }
-
-    // Process pending offers
-    if (offers && Array.isArray(offers)) {
-      const pendingOffers = offers.filter((offer) => offer.status === 'pending');
-      if (pendingOffers.length > 0) {
-        allNotifications.push({
-          id: 'offers-pending',
-          type: 'offer',
-          title: `${pendingOffers.length} Pending Offer${pendingOffers.length > 1 ? 's' : ''}`,
-          description: 'Review and respond to your pending offers',
-          dueDate: new Date().toISOString(),
-          priority: 'high',
-          icon: <DollarSign className="w-5 h-5" />,
-          color: 'bg-green-50 text-green-700',
         });
       }
-    }
 
-    // Sort by priority and date
-    allNotifications.sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      // ===== PROCESS OFFERS =====
+      if (offers && Array.isArray(offers) && offers.length > 0) {
+        console.log('💰 Processing offers:', offers);
+        
+        const pendingOffers = offers.filter(
+          (offer) => offer.status?.toLowerCase?.() === 'pending' || offer.status === 'pending'
+        );
+
+        if (pendingOffers.length > 0) {
+          allNotifications.push({
+            id: 'offers-pending',
+            type: 'offer',
+            title: `💰 ${pendingOffers.length} Pending Offer${pendingOffers.length > 1 ? 's' : ''}`,
+            description: 'Review and respond to your pending offers',
+            dueDate: new Date().toISOString(),
+            priority: 'high',
+            icon: <DollarSign className="w-5 h-5" />,
+          });
+
+          console.log('✅ Added offer notification:', { count: pendingOffers.length });
+        }
       }
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
 
-    setNotifications(allNotifications);
-    setUnreadCount(allNotifications.length);
+      // Sort by priority and date
+      allNotifications.sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        }
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+
+      setNotifications(allNotifications);
+      setUnreadCount(allNotifications.length);
+      setDebugInfo(debug);
+
+      console.log('✅ Final notifications:', {
+        total: allNotifications.length,
+        deadlines: allNotifications.filter(n => n.type === 'deadline').length,
+        interviews: allNotifications.filter(n => n.type === 'interview').length,
+        offers: allNotifications.filter(n => n.type === 'offer').length,
+      });
+    } catch (err) {
+      console.error('❌ Error calculating notifications:', err);
+      logError('Error calculating notifications', err as Error);
+    }
   }, [deadlines, interviews, offers]);
 
   const handleDismiss = (id: string) => {
@@ -166,7 +246,7 @@ export const NotificationsDropdown = ({
 
   return (
     <div className="relative">
-      {/* Notification Bell Button */}
+      {/* Bell Button */}
       <button
         onClick={() => setShowDropdown(!showDropdown)}
         className={`p-2 rounded-lg transition relative ${
@@ -174,7 +254,7 @@ export const NotificationsDropdown = ({
             ? 'hover:bg-gray-800 text-gray-300'
             : 'hover:bg-gray-100 text-gray-600'
         }`}
-        title="Notifications"
+        title={`Notifications (${unreadCount})`}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -225,6 +305,15 @@ export const NotificationsDropdown = ({
             </button>
           </div>
 
+          {/* Debug Info (Dev) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className={`px-4 py-2 text-xs border-b ${
+              isDarkMode ? 'border-gray-700 bg-gray-900 text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'
+            }`}>
+              <div>📦 Deadlines: {debugInfo.deadlinesReceived} | 🗓️ Interviews: {debugInfo.interviewsReceived} | 💰 Offers: {debugInfo.offersReceived}</div>
+            </div>
+          )}
+
           {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
@@ -239,71 +328,63 @@ export const NotificationsDropdown = ({
               </div>
             ) : (
               <div className="divide-y transition-colors">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 transition-colors ${
-                      isDarkMode
-                        ? 'hover:bg-gray-700 border-gray-700'
-                        : 'hover:bg-gray-50 border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Icon */}
-                      <div
-                        className={`p-2 rounded-lg flex-shrink-0 transition-colors ${
-                          notification.type === 'deadline'
-                            ? isDarkMode
-                              ? 'bg-red-900/30 text-red-400'
-                              : 'bg-red-50 text-red-600'
-                            : notification.type === 'interview'
-                            ? isDarkMode
-                              ? 'bg-blue-900/30 text-blue-400'
-                              : 'bg-blue-50 text-blue-600'
-                            : isDarkMode
-                            ? 'bg-green-900/30 text-green-400'
-                            : 'bg-green-50 text-green-600'
-                        }`}
-                      >
-                        {notification.icon}
-                      </div>
+                {notifications.map((notification) => {
+                  const iconBgColor =
+                    notification.type === 'deadline'
+                      ? isDarkMode
+                        ? 'bg-red-900/30 text-red-400'
+                        : 'bg-red-50 text-red-600'
+                      : notification.type === 'interview'
+                      ? isDarkMode
+                        ? 'bg-blue-900/30 text-blue-400'
+                        : 'bg-blue-50 text-blue-600'
+                      : isDarkMode
+                      ? 'bg-green-900/30 text-green-400'
+                      : 'bg-green-50 text-green-600';
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm font-semibold transition-colors ${
+                  return (
+                    <div
+                      key={notification.id}
+                      className={`p-4 transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg flex-shrink-0 ${iconBgColor}`}>
+                          {notification.icon}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm font-semibold transition-colors ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}
+                          >
+                            {notification.title}
+                          </p>
+                          <p
+                            className={`text-xs mt-1 transition-colors ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}
+                          >
+                            {notification.description}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleDismiss(notification.id)}
+                          className={`p-1 rounded transition flex-shrink-0 ${
                             isDarkMode
-                              ? 'text-white'
-                              : 'text-gray-900'
+                              ? 'hover:bg-gray-600 text-gray-400'
+                              : 'hover:bg-gray-200 text-gray-400'
                           }`}
                         >
-                          {notification.title}
-                        </p>
-                        <p
-                          className={`text-xs mt-1 transition-colors ${
-                            isDarkMode
-                              ? 'text-gray-400'
-                              : 'text-gray-500'
-                          }`}
-                        >
-                          {notification.description}
-                        </p>
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
-
-                      {/* Dismiss Button */}
-                      <button
-                        onClick={() => handleDismiss(notification.id)}
-                        className={`p-1 rounded transition flex-shrink-0 ${
-                          isDarkMode
-                            ? 'hover:bg-gray-600 text-gray-400'
-                            : 'hover:bg-gray-200 text-gray-400'
-                        }`}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -332,7 +413,7 @@ export const NotificationsDropdown = ({
         </div>
       )}
 
-      {/* Close dropdown when clicking outside */}
+      {/* Close on outside click */}
       {showDropdown && (
         <div
           className="fixed inset-0 z-40"

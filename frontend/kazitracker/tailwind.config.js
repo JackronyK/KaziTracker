@@ -2,10 +2,18 @@
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}", // Make sure it scans all your JSX files
+    "./src/**/*.{js,jsx,ts,tsx}",
   ],
+  // 🔴 THIS WAS MISSING - THIS IS THE FIX!
+  darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        slate: {
+          950: '#030712',
+        },
+      },
+    },
   },
   plugins: [],
 };
