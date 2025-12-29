@@ -33,6 +33,68 @@ class APIClient {
     this.baseURL = baseURL;
     this.timeout = timeout;
     this.token = this.getStoredToken();
+    // Bind all methods to preserve 'this' context
+    this.bindMethods();
+
+  }
+
+    // Bind all public methods to maintain 'this' context
+  private bindMethods() {
+    // Auth methods
+    this.signup = this.signup.bind(this);
+    this.login = this.login.bind(this);
+    this.getCurrentUser = this.getCurrentUser.bind(this);
+    
+    // Profile methods
+    this.updateProfile = this.updateProfile.bind(this);
+    this.getProfile = this.getProfile.bind(this);
+    
+    // Job methods
+    this.createJob = this.createJob.bind(this);
+    this.listJobs = this.listJobs.bind(this);
+    this.getJob = this.getJob.bind(this);
+    this.updateJob = this.updateJob.bind(this);
+    this.deleteJob = this.deleteJob.bind(this);
+    
+    // Parser methods
+    this.parseJD = this.parseJD.bind(this);
+    
+    // Application methods
+    this.createApplication = this.createApplication.bind(this);
+    this.listApplications = this.listApplications.bind(this);
+    this.getApplication = this.getApplication.bind(this);
+    this.updateApplication = this.updateApplication.bind(this);
+    this.updateApplicationStatus = this.updateApplicationStatus.bind(this);
+    this.deleteApplication = this.deleteApplication.bind(this);
+    
+    // Resume methods
+    this.uploadResume = this.uploadResume.bind(this);
+    this.listResumes = this.listResumes.bind(this);
+    this.updateResumeTags = this.updateResumeTags.bind(this);
+    this.downloadResume = this.downloadResume.bind(this);
+    
+    this.deleteResume = this.deleteResume.bind(this);
+    
+    // Interview methods
+    this.listInterviews = this.listInterviews.bind(this);
+    this.createInterview = this.createInterview.bind(this);
+    this.updateInterview = this.updateInterview.bind(this);
+    this.deleteInterview = this.deleteInterview.bind(this);
+    
+    // Offer methods
+    this.listOffers = this.listOffers.bind(this);
+    this.createOffer = this.createOffer.bind(this);
+    this.updateOffer = this.updateOffer.bind(this);
+    this.deleteOffer = this.deleteOffer.bind(this);
+    
+    // Deadline methods
+    this.listDeadlines = this.listDeadlines.bind(this);
+    this.createDeadline = this.createDeadline.bind(this);
+    this.updateDeadline = this.updateDeadline.bind(this);
+    this.deleteDeadline = this.deleteDeadline.bind(this);
+    
+    // Util methods
+    this.healthCheck = this.healthCheck.bind(this);
   }
 
   // =========================================================================
@@ -379,14 +441,32 @@ class APIClient {
     }
   }
 
-  async updateResumeTags(id: number, tags: string[]): Promise<Resume> {
+  async updateResume(id: number, tags?: string, file?: File): Promise<Resume> {
     try {
-      const tagsString = tags.join(',');
-      return await this.request<Resume>('PATCH', `/api/resumes/update/${id}`, { tags: tagsString });
+      const formData = new FormData();
+      
+      if (file) {
+        formData.append('file', file);
+      }
+      if (tags !== undefined) {
+        formData.append('tags', tags);
+      }
+      
+      return await this.request<Resume>(
+        'PATCH', 
+        `/api/resumes/update/${id}`, 
+        formData, 
+        true  // isFormData = true
+      );
     } catch (error) {
-      logError('Failed to update resume tags', error as Error, { resumeId: id });
+      logError('Failed to update resume', error as Error, { resumeId: id });
       throw error;
     }
+  }
+
+  async updateResumeTags(id: number, tags: string[]): Promise<Resume> {
+    const tagsString = tags.join(',');
+    return this.updateResume(id, tagsString);
   }
 
   async deleteResume(id: number): Promise<void> {
@@ -397,6 +477,50 @@ class APIClient {
       throw error;
     }
   }
+
+  async downloadResume(id: number): Promise<void> {
+  try {
+    const token = this.getToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    
+    const url = `${this.baseURL}/api/resumes/download/${id}`;
+    
+    // Open in new tab with auth token
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // For download, we need to add token to the request
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(response => {
+      if (!response.ok) throw new Error('Download failed');
+      return response.blob();
+    })
+    .then(blob => {
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `resume-${id}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+    })
+    .catch(error => {
+      logError('Failed to download resume', error, { resumeId: id });
+      throw error;
+    });
+  } catch (error) {
+    logError('Download failed', error as Error, { resumeId: id });
+    throw error;
+  }
+}
 
   // =========================================================================
   // INTERVIEWS

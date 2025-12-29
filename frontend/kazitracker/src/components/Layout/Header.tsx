@@ -1,36 +1,76 @@
 // src/components/Layout/Header.tsx
+
 /**
- * Header Component
- * Top navigation bar with user menu and app branding
+ * Header Component - ENHANCED
+ * Top navigation bar with fully functional user menu
+ * Includes Profile, Settings, Help, and Theme Toggle
  */
 
-import { LogOut, Menu, X, Bell, Settings } from 'lucide-react';
+import { LogOut, Menu, X, Sun, Moon } from 'lucide-react';
 import { useState } from 'react';
 import type { User } from '../../types';
 import { logInfo } from '../../utils/errorLogger';
+import { ProfileModal } from './ProfileModal';
+import { SettingsModal } from './SettingsModal';
+import { HelpModal } from './HelpModal';
+import { NotificationsDropdown } from './NotificationsDropdown';
 
 interface HeaderProps {
   user: User | null;
   onLogout: () => void;
   onMenuToggle?: (isOpen: boolean) => void;
+  isDarkMode?: boolean;
+  onThemeToggle?: () => void;
+  deadlines?: any[];
+  interviews?: any[];
+  offers?: any[];
 }
 
 /**
  * Header Component
  * 
  * Features:
- * - User info display
- * - Logout button
- * - Notifications (placeholder)
- * - Settings (placeholder)
- * - Mobile menu toggle
+ * ✅ User info display
+ * ✅ Functional Profile modal
+ * ✅ Functional Settings modal (with theme toggle)
+ * ✅ Functional Help & Support modal
+ * ✅ Logout button
+ * ✅ Notifications icon with badge
+ * ✅ Dark/Light mode toggle
+ * ✅ Mobile menu toggle
+ * ✅ Responsive design
  * 
  * Usage:
- * <Header user={user} onLogout={handleLogout} onMenuToggle={setMobileMenuOpen} />
+ * <Header 
+ *   user={user} 
+ *   onLogout={handleLogout}
+ *   isDarkMode={isDark}
+ *   onThemeToggle={toggleTheme}
+ * />
  */
-export const Header = ({ user, onLogout, onMenuToggle }: HeaderProps) => {
+export const Header = ({ 
+  user, 
+  onLogout, 
+  onMenuToggle,
+  isDarkMode = false,
+  onThemeToggle = () => {},
+  deadlines = [],
+  interviews = [],
+  offers = []
+}: HeaderProps) => {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // =========================================================================
+  // HANDLERS
+  // =========================================================================
 
   const handleMenuToggle = () => {
     const newState = !mobileMenuOpen;
@@ -39,139 +79,262 @@ export const Header = ({ user, onLogout, onMenuToggle }: HeaderProps) => {
     logInfo('Mobile menu toggled', { isOpen: newState });
   };
 
+  const handleProfileClick = () => {
+    logInfo('Profile modal opened');
+    setShowUserMenu(false);
+    setShowProfileModal(true);
+  };
+
+  const handleSettingsClick = () => {
+    logInfo('Settings modal opened');
+    setShowUserMenu(false);
+    setShowSettingsModal(true);
+  };
+
+  const handleHelpClick = () => {
+    logInfo('Help modal opened');
+    setShowUserMenu(false);
+    setShowHelpModal(true);
+  };
+
   const handleLogout = () => {
     logInfo('Logout clicked');
     setShowUserMenu(false);
     onLogout();
   };
 
+  // =========================================================================
+  // RENDER
+  // =========================================================================
+
   return (
-    <header className="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-        {/* Left Section: Logo & Title */}
-        <div className="flex items-center gap-3">
-          {/* Mobile Menu Toggle */}
-          <button
-            onClick={handleMenuToggle}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition"
-          >
-            {mobileMenuOpen ? (
-              <X className="w-6 h-6 text-gray-700" />
-            ) : (
-              <Menu className="w-6 h-6 text-gray-700" />
-            )}
-          </button>
-
-          {/* Logo & Title */}
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg hidden sm:block">
-              <span className="text-white font-bold text-lg">💼</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">KaziTracker</h1>
-              <p className="text-xs text-gray-500 hidden sm:block">Job Application Manager</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Section: Actions & User Menu */}
-        <div className="flex items-center gap-4">
-          {/* Notifications (Placeholder) */}
-          <button
-            className="p-2 hover:bg-gray-100 rounded-lg transition relative"
-            title="Notifications"
-          >
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-
-          {/* Settings (Placeholder) */}
-          <button
-            className="p-2 hover:bg-gray-100 rounded-lg transition hidden sm:block"
-            title="Settings"
-          >
-            <Settings className="w-5 h-5 text-gray-600" />
-          </button>
-
-          {/* Divider */}
-          <div className="w-px h-8 bg-gray-200"></div>
-
-          {/* User Menu */}
-          <div className="relative">
-            {/* User Button */}
+    <>
+      <header className={`sticky top-0 z-40 transition-colors ${
+        isDarkMode 
+          ? 'bg-gray-900 border-gray-800 shadow-xl' 
+          : 'bg-white border-gray-200 shadow-sm'
+      } shadow-sm border-b`}>
+        <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+          
+          {/* ============================================================= */}
+          {/* ****LEFT SECTION: Logo & Title   *****/}
+          {/* ============================================================= */}
+          <div className="flex items-center gap-3">
+            {/* Mobile Menu Toggle */}
             <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition"
+              onClick={handleMenuToggle}
+              className={`lg:hidden p-2 rounded-lg transition ${
+                isDarkMode
+                  ? 'hover:bg-gray-800 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
+              title="Toggle menu"
             >
-              {/* Avatar */}
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                {user?.email?.[0]?.toUpperCase() || 'U'}
-              </div>
-
-              {/* User Info (Desktop) */}
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium text-gray-900">{user?.email?.split('@')[0] || 'User'}</p>
-                <p className="text-xs text-gray-500 truncate max-w-[150px]">{user?.email || ''}</p>
-              </div>
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
 
-            {/* Dropdown Menu */}
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                {/* User Info (Mobile) */}
-                <div className="sm:hidden px-4 py-2 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{user?.email || 'User'}</p>
-                  <p className="text-xs text-gray-500 mt-1">Account</p>
+            {/* Logo & Title */}
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg hidden sm:block">
+                <span className="text-white font-bold text-lg">💼</span>
+              </div>
+              <div>
+                <h1 className={`text-xl font-bold transition-colors ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  KaziTracker
+                </h1>
+                <p className={`text-xs hidden sm:block transition-colors ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  Job Application Manager
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================================= */}
+          {/* RIGHT SECTION: Actions & User Menu                           */}
+          {/* ============================================================= */}
+          <div className="flex items-center gap-4">
+            {/* Notifications Dropdown - Now Functional! */}
+            <NotificationsDropdown
+              deadlines={deadlines}
+              interviews={interviews}
+              offers={offers}
+              isDarkMode={isDarkMode}
+            />
+
+            {/* Theme Toggle */}
+            <button
+              onClick={onThemeToggle}
+              className={`p-2 rounded-lg transition ${
+                isDarkMode
+                  ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700'
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className={`w-px h-8 transition-colors ${
+              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+            }`}></div>
+
+            {/* User Menu */}
+            <div className="relative">
+              {/* User Button */}
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className={`flex items-center gap-2 p-2 rounded-lg transition ${
+                  isDarkMode
+                    ? 'hover:bg-gray-800 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+                title="User menu"
+              >
+                {/* Avatar */}
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {user?.email?.[0]?.toUpperCase() || 'U'}
                 </div>
 
-                {/* Menu Items */}
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logInfo('Profile clicked');
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                >
-                  👤 Profile
-                </button>
+                {/* User Info (Desktop) */}
+                <div className="hidden sm:block text-left">
+                  <p className={`text-sm font-medium transition-colors ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {user?.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className={`text-xs transition-colors ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  } truncate max-w-[150px]`}>
+                    {user?.email || ''}
+                  </p>
+                </div>
+              </button>
 
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logInfo('Settings clicked');
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                >
-                  ⚙️ Settings
-                </button>
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg border py-1 z-50 transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-gray-200'
+                }`}>
+                  
+                  {/* User Info (Mobile) */}
+                  <div className={`sm:hidden px-4 py-2 border-b ${
+                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <p className={`text-sm font-medium transition-colors ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      {user?.email || 'User'}
+                    </p>
+                    <p className={`text-xs mt-1 transition-colors ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Account
+                    </p>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logInfo('Help clicked');
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-                >
-                  ❓ Help & Support
-                </button>
+                  {/* Menu Items */}
+                  <button
+                    onClick={handleProfileClick}
+                    className={`w-full text-left px-4 py-2 text-sm transition ${
+                      isDarkMode
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    👤 Profile
+                  </button>
 
-                {/* Divider */}
-                <div className="my-1 border-t border-gray-200"></div>
+                  <button
+                    onClick={handleSettingsClick}
+                    className={`w-full text-left px-4 py-2 text-sm transition ${
+                      isDarkMode
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    ⚙️ Settings
+                  </button>
 
-                {/* Logout */}
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
-            )}
+                  <button
+                    onClick={handleHelpClick}
+                    className={`w-full text-left px-4 py-2 text-sm transition ${
+                      isDarkMode
+                        ? 'text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    ❓ Help & Support
+                  </button>
+
+                  {/* Divider */}
+                  <div className={`my-1 transition-colors ${
+                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  } border-t`}></div>
+
+                  {/* Logout */}
+                  <button
+                    onClick={handleLogout}
+                    className={`w-full text-left px-4 py-2 text-sm transition flex items-center gap-2 ${
+                      isDarkMode
+                        ? 'text-red-400 hover:bg-red-900/20'
+                        : 'text-red-700 hover:bg-red-50'
+                    }`}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* ================================================================= */}
+      {/* MODALS                                                            */}
+      {/* ================================================================= */}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfileModal(false)}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <SettingsModal
+          onClose={() => setShowSettingsModal(false)}
+          isDarkMode={isDarkMode}
+          onThemeToggle={onThemeToggle}
+        />
+      )}
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <HelpModal
+          onClose={() => setShowHelpModal(false)}
+          isDarkMode={isDarkMode}
+        />
+      )}
+    </>
   );
 };
 

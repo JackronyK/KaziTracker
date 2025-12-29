@@ -233,6 +233,7 @@ export interface Resume {
   // File details
   filename: string;
   file_path: string;
+  file_size?: number;
   file_type: ResumeFileType;
   
   // Extracted content

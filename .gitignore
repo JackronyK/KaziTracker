@@ -1,7 +1,7 @@
 # Virtual environments
 kazi_env/
 venv/
-.env
+*.env
 
 # Python cache and compiled files
 __pycache__/

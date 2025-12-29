@@ -1,69 +1,69 @@
 """
 Database Models for KaziTracker
-Complete data models for all phases - WORKING VERSION
+Production-ready with proper cascade delete handling
 """
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from typing import Optional
 
 # ============================================================================
-# USER & AUTHENTICATION (Phase 1-2) - Define first (no dependencies)
+# USER & AUTHENTICATION - Define first (no dependencies)
 # ============================================================================
 
 class User(SQLModel, table=True):
-    """User account model"""
+    """User account model with cascade delete protection"""
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
     password_hash: str
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=True)
 
-    # ✅ NEW: Profile fields
-    full_name: Optional[str] = Field(
-        default=None,
-        nullable=True,
-        description="User's full name"
-    )
-    phone_number: Optional[str] = Field(
-        default=None,
-        nullable=True,
-        description="User's phone number"
-    )
-    location: Optional[str] = Field(
-        default=None,
-        nullable=True,
-        description="User's location (City, Country)"
-    )
-    headline: Optional[str] = Field(
-        default=None,
-        nullable=True,
-        description="Professional headline"
-    )
+    # Profile fields
+    full_name: Optional[str] = Field(default=None, nullable=True)
+    phone_number: Optional[str] = Field(default=None, nullable=True)
+    location: Optional[str] = Field(default=None, nullable=True)
+    headline: Optional[str] = Field(default=None, nullable=True)
     
-    # ✅ FUTURE: Profile expansion fields (commented out for now)
-    # education: Optional[str] = Field(default=None)  # JSON array
-    # skills: Optional[str] = Field(default=None)  # JSON array
-    # work_experience: Optional[str] = Field(default=None)  # JSON array
-    # profile_picture_url: Optional[str] = Field(default=None)
-    
-    # Relationships defined with back_populates
-    jobs: list["Job"] = Relationship(back_populates="user")
-    resumes: list["Resume"] = Relationship(back_populates="user")
-    applications: list["Application"] = Relationship(back_populates="user")
-    activity_logs: list["Activity"] = Relationship(back_populates="user")
-    interviews: list["Interview"] = Relationship(back_populates="user")
-    offers: list["Offer"] = Relationship(back_populates="user")
-    deadlines: list["Deadline"] = Relationship(back_populates="user")
+    # Relationships with CASCADE DELETE
+    # When user is deleted, all related data is deleted
+    jobs: list["Job"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    resumes: list["Resume"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    applications: list["Application"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    activity_logs: list["Activity"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    interviews: list["Interview"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    offers: list["Offer"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    deadlines: list["Deadline"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+
 
 # ============================================================================
-# JOB POSTINGS (Phase 3) - Define second
+# JOB POSTINGS - Define second
 # ============================================================================
-    
 
 class Job(SQLModel, table=True):
-    """Job posting model"""
+    """Job posting model with cascade delete"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
     
     # Job Details
     title: str = Field(index=True)
@@ -84,20 +84,21 @@ class Job(SQLModel, table=True):
     
     # Relationships
     user: User = Relationship(back_populates="jobs")
+    # When job is deleted, all applications are deleted
     applications: list["Application"] = Relationship(
         back_populates="job",
-        sa_relationship_kwargs={"cascade": "all, delete"}
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
 
 # ============================================================================
-# RESUME MANAGEMENT (Phase 5) - Define third
+# RESUME MANAGEMENT - Define third
 # ============================================================================
 
 class Resume(SQLModel, table=True):
-    """Resume/CV model"""
+    """Resume/CV model with proper cascade handling"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
     
     # File Information
     filename: str = Field(index=True)
@@ -110,22 +111,29 @@ class Resume(SQLModel, table=True):
     tags: Optional[str] = None
     
     # Timestamps
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
     user: User = Relationship(back_populates="resumes")
-    applications: list["Application"] = Relationship(back_populates="resume")
+    # When resume is deleted, SET NULL on applications (don't delete them)
+    applications: list["Application"] = Relationship(
+        back_populates="resume",
+        sa_relationship_kwargs={
+            "cascade": "save-update, merge",
+            "passive_deletes": True
+        }
+    )
 
 
 # ============================================================================
-# ACTIVITY LOG (Phase 6) - Define before Application
+# ACTIVITY LOG - Define before Application
 # ============================================================================
 
 class Activity(SQLModel, table=True):
     """User activity log for analytics"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
     
     # Action Information
     action: str = Field(index=True)
@@ -141,15 +149,19 @@ class Activity(SQLModel, table=True):
 
 
 # ============================================================================
-# APPLICATION MODEL (Phase 4) - Define AFTER all models it references
+# APPLICATION MODEL - Define AFTER all models it references
 # ============================================================================
 
 class Application(SQLModel, table=True):
-    """Application tracking model - tracks job application lifecycle"""
+    """
+    Application tracking model with proper cascade handling
+    - Deleting application deletes all interviews, offers, deadlines
+    - Deleting resume sets resume_id to NULL (doesn't delete application)
+    """
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    job_id: int = Field(foreign_key="job.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    job_id: int = Field(foreign_key="job.id", index=True, ondelete="CASCADE")
     
     # Status Tracking
     status: str = Field(default="Saved", index=True)
@@ -161,9 +173,15 @@ class Application(SQLModel, table=True):
     rejected_date: Optional[datetime] = None
     
     # Links to other entities
-    resume_id: Optional[int] = Field(default=None, foreign_key="resume.id", nullable=True)
+    # SET NULL on delete - if resume is deleted, application remains
+    resume_id: Optional[int] = Field(
+        default=None,
+        foreign_key="resume.id",
+        nullable=True,
+        ondelete="SET NULL"
+    )
     
-    # Phase 7: Rejection & Offer Details
+    # Rejection & Offer Details
     rejection_reason: Optional[str] = None
     offer_details: Optional[str] = None
     notes: Optional[str] = None
@@ -176,20 +194,35 @@ class Application(SQLModel, table=True):
     user: User = Relationship(back_populates="applications")
     job: Job = Relationship(back_populates="applications")
     resume: Optional[Resume] = Relationship(back_populates="applications")
-    interviews: list["Interview"] = Relationship(back_populates="application")
-    offers: list["Offer"] = Relationship(back_populates="application")
-    deadlines: list["Deadline"] = Relationship(back_populates="application")
+    
+    # CASCADE DELETE - When application is deleted, delete all related records
+    interviews: list["Interview"] = Relationship(
+        back_populates="application",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    offers: list["Offer"] = Relationship(
+        back_populates="application",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    deadlines: list["Deadline"] = Relationship(
+        back_populates="application",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 
 # ============================================================================
-# INTERVIEW MODEL (Phase 7) - Define AFTER Application
+# INTERVIEW MODEL - Define AFTER Application
 # ============================================================================
 
 class Interview(SQLModel, table=True):
     """Interview scheduling and tracking model"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    application_id: int = Field(foreign_key="application.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    application_id: int = Field(
+        foreign_key="application.id",
+        index=True,
+        ondelete="CASCADE"  # Delete interview when application is deleted
+    )
     
     # Interview Details
     date: datetime
@@ -215,14 +248,18 @@ class Interview(SQLModel, table=True):
 
 
 # ============================================================================
-# OFFER MODEL (Phase 7) - Define AFTER Application
+# OFFER MODEL - Define AFTER Application
 # ============================================================================
 
 class Offer(SQLModel, table=True):
     """Job offer tracking and negotiation model"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    application_id: int = Field(foreign_key="application.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    application_id: int = Field(
+        foreign_key="application.id",
+        index=True,
+        ondelete="CASCADE"  # Delete offer when application is deleted
+    )
     
     # Company & Position
     company_name: str
@@ -237,7 +274,7 @@ class Offer(SQLModel, table=True):
     deadline: datetime
     
     # Status Management
-    status: str = Field(default="pending", index=True)  # pending, accepted, rejected, negotiating
+    status: str = Field(default="pending", index=True)
     
     # Negotiation
     negotiation_history: Optional[str] = None  # JSON array
@@ -252,14 +289,18 @@ class Offer(SQLModel, table=True):
 
 
 # ============================================================================
-# DEADLINE MODEL (Phase 7) - Define AFTER Application
+# DEADLINE MODEL - Define AFTER Application
 # ============================================================================
 
 class Deadline(SQLModel, table=True):
     """Application deadline tracking model"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    application_id: int = Field(foreign_key="application.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    application_id: int = Field(
+        foreign_key="application.id",
+        index=True,
+        ondelete="CASCADE"  # Delete deadline when application is deleted
+    )
     
     # Deadline Details
     title: str
@@ -280,3 +321,26 @@ class Deadline(SQLModel, table=True):
     # Relationships
     user: User = Relationship(back_populates="deadlines")
     application: Application = Relationship(back_populates="deadlines")
+
+
+# ============================================================================
+# MIGRATION HELPER
+# ============================================================================
+
+def get_cascade_rules_summary():
+    """
+    Summary of cascade delete behavior:
+    
+    1. Delete User → Deletes ALL related data (jobs, resumes, applications, etc.)
+    2. Delete Job → Deletes all applications for that job
+    3. Delete Resume → Applications keep resume_id as NULL (preserved)
+    4. Delete Application → Deletes interviews, offers, deadlines
+    
+    This prevents orphaned records and maintains referential integrity.
+    """
+    return {
+        "user_deletion": "Cascades to all user data",
+        "job_deletion": "Cascades to applications only",
+        "resume_deletion": "Sets NULL in applications (safe)",
+        "application_deletion": "Cascades to interviews, offers, deadlines"
+    }

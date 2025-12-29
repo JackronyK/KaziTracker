@@ -22,6 +22,8 @@ interface Offer {
   benefits: string[];
   startDate: string;
   deadline: string;
+  createdAt: string;
+  updatedAt: string;
   status: 'pending' | 'accepted' | 'rejected' | 'negotiating';
   negotiationHistory: { date: string; proposal: string }[];
 }
@@ -36,6 +38,8 @@ interface Deadline {
   type: 'response' | 'decision' | 'negotiation' | 'other';
   priority: 'high' | 'medium' | 'low';
   completed: boolean;
+  createdAt: string;
+  updatedAt: string;
   notes?: string;
 }
 
@@ -52,6 +56,8 @@ interface Interview {
   notes?: string;
   prepChecklist: { task: string; completed: boolean }[];
   reminders: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type { Interview };

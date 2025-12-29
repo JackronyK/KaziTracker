@@ -1,14 +1,26 @@
 // src/hooks/useResumes.ts
+
+/**
+ * ============================================================================
+ * useResumes Hook - FIXED
+ * ============================================================================
+ * Manages all resume-related operations and state
+ * Fixed tags handling to use strings instead of arrays
+ */
+
 import { useState, useCallback } from 'react';
 import { logInfo, logError } from '../utils/errorLogger';
-import type { Resume } from '../types';
-import { apiClient } from '../api';
+import type { Resume, UseResumesReturn } from '../types';
+import { apiClient } from '../api/index';
 
-export const useResumes = () => {
+export const useResumes = (): UseResumesReturn => {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Fetch all resumes from API
+   */
   const fetchResumes = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -26,57 +38,87 @@ export const useResumes = () => {
     }
   }, []);
 
-  const uploadResume = useCallback(async (file: File, tags?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      logInfo('Uploading resume', { filename: file.name });
-      const uploaded = await apiClient.uploadResume(file, tags);
-      setResumes(prev => [...prev, uploaded]);
-      logInfo('Resume uploaded', { id: uploaded.id });
-      return uploaded;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to upload resume';
-      setError(message);
-      logError('Failed to upload resume', err as Error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /**
+   * Upload new resume
+   */
+  const uploadResume = useCallback(
+    async (file: File, tags?: string): Promise<Resume | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        logInfo('Uploading resume', { filename: file.name, size: file.size });
+        const newResume = await apiClient.uploadResume(file, tags);
 
-  const updateResumeTags = useCallback(async (id: number, tags: string[]) => {
-    setLoading(true);
-    setError(null);
-    try {
-      logInfo('Updating resume tags', { resumeId: id });
-      const updated = await apiClient.updateResumeTags(id, tags);
-      setResumes(prev => prev.map(r => (r.id === id ? updated : r)));
-      logInfo('Resume tags updated', { resumeId: id });
-      return updated;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update resume tags';
-      setError(message);
-      logError('Failed to update resume tags', err as Error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        // Add to local state
+        setResumes((prev) => [newResume, ...prev]);
+        logInfo('Resume uploaded successfully', { resumeId: newResume.id });
 
-  const deleteResume = useCallback(async (id: number) => {
+        return newResume;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to upload resume';
+        setError(message);
+        logError('Failed to upload resume', err as Error);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * Update resume tags
+   * @param id - Resume ID
+   * @param tags - Comma-separated tag string
+   */
+  const updateResumeTags = useCallback(
+    async (id: number, tags: string): Promise<Resume | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        logInfo('Updating resume tags', { resumeId: id, tags });
+        
+        // Convert comma-separated string to array for API
+        const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+        const updated = await apiClient.updateResumeTags(id, tagArray);
+
+        // Update local state
+        setResumes((prev) => prev.map((r) => (r.id === id ? updated : r)));
+        logInfo('Resume tags updated successfully', { resumeId: id });
+
+        return updated;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update tags';
+        setError(message);
+        logError('Failed to update resume tags', err as Error, { resumeId: id });
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+
+  /**
+   * Delete resume
+   */
+  const deleteResume = useCallback(async (id: number): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
       logInfo('Deleting resume', { resumeId: id });
       await apiClient.deleteResume(id);
-      setResumes(prev => prev.filter(r => r.id !== id));
-      logInfo('Resume deleted', { resumeId: id });
+
+      // Remove from local state
+      setResumes((prev) => prev.filter((r) => r.id !== id));
+      logInfo('Resume deleted successfully', { resumeId: id });
+
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete resume';
       setError(message);
-      logError('Failed to delete resume', err as Error);
+      logError('Failed to delete resume', err as Error, { resumeId: id });
       return false;
     } finally {
       setLoading(false);
@@ -89,7 +131,7 @@ export const useResumes = () => {
     error,
     fetchResumes,
     uploadResume,
-    updateResumeTags,
     deleteResume,
+    updateResumeTags,
   };
 };

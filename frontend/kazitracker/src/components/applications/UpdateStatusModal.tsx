@@ -1,7 +1,7 @@
 // src/components/applications/UpdateStatusModal.tsx
 /**
- * UpdateStatusModal Component - IMPROVED VERSION
- * Modal for updating application status with validation and error handling
+ * UpdateStatusModal Component - FIXED VERSION
+ * Fixed case sensitivity issues with status values
  */
 
 import { useState } from 'react';
@@ -10,8 +10,7 @@ import { useApplications } from '../../hooks/useApplications';
 import type { Application } from '../../types/index';
 import { logInfo, logError } from '../../utils/errorLogger';
 import { RejectionModal } from './RejectionModal';
-import { OfferModal } from './OfferModal';
-import { formatDateTime } from '../../utils/formatters';
+import { OfferModal } from '../Premium/OfferModal';
 
 interface UpdateStatusModalProps {
   application: Application;
@@ -28,30 +27,23 @@ interface OfferDetails {
 }
 
 /**
- * UpdateStatusModal Component
- * 
- * Props:
- * - application: Application to update
- * - onClose: Callback to close modal
- * - onStatusUpdated: Callback after status updated
- * 
- * Features:
- * - Change application status
- * - Optional date picker for status dates
- * - Status flow validation
- * - Error handling
- * - Loading state
+ * Status flow mapping - uses LOWERCASE to match database values
  */
-
 const STATUS_FLOW: Record<string, string[]> = {
-  'Saved': ['Applied'],
-  'Applied': ['Interview', 'Rejected'],
-  'Interview': ['Offer', 'Rejected'],
-  'Offer': ['Rejected'],
-  'Rejected': ['Applied'],
+  'saved': ['applied'],
+  'applied': ['interview', 'rejected'],
+  'interview': ['offer', 'rejected'],
+  'offer': ['rejected'],
+  'rejected': ['applied'],
 };
 
-const ALL_STATUSES = ['Saved', 'Applied', 'Interview', 'Offer', 'Rejected'];
+const ALL_STATUSES = [
+  { value: 'saved', label: 'Saved', emoji: '📌' },
+  { value: 'applied', label: 'Applied', emoji: '📤' },
+  { value: 'interview', label: 'Interview', emoji: '🎯' },
+  { value: 'offer', label: 'Offer', emoji: '🎉' },
+  { value: 'rejected', label: 'Rejected', emoji: '❌' },
+];
 
 export const UpdateStatusModal = ({
   application,
@@ -61,9 +53,9 @@ export const UpdateStatusModal = ({
   const { updateApplication, loading } = useApplications();
 
   /**
-   * Format date for input field (handles timezone issues)
+   * Format date for input field
    */
-  const formatDateTime = (dateStr: string | null | undefined): string => {
+  const formatDateForInput = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '';
     try {
       const date = new Date(dateStr);
@@ -74,7 +66,7 @@ export const UpdateStatusModal = ({
   };
 
   /**
-   * Safely parse offer details from JSON string
+   * Parse offer details safely
    */
   const parseOfferDetails = (): OfferDetails => {
     if (!application.offer_details) return {};
@@ -86,26 +78,29 @@ export const UpdateStatusModal = ({
     }
   };
 
-  // State
-  const [newStatus, setNewStatus] = useState(application.status);
-  const [appliedDate, setAppliedDate] = useState(formatDateTime(application.applied_date));
-  const [interviewDate, setInterviewDate] = useState(formatDateTime(application.interview_date));
+  // Normalize status to lowercase
+  const currentStatus = application.status.toLowerCase();
+
+  // State - all status values in LOWERCASE
+  const [newStatus, setNewStatus] = useState(currentStatus);
+  const [appliedDate, setAppliedDate] = useState(formatDateForInput(application.applied_date));
+  const [interviewDate, setInterviewDate] = useState(formatDateForInput(application.interview_date));
   const [rejectionReason, setRejectionReason] = useState(application.rejection_reason || '');
   const [offerDetails, setOfferDetails] = useState<OfferDetails>(parseOfferDetails());
-  const [offerDate, setOfferDate] = useState(formatDateTime(application.offer_date));
-  const [rejectedDate, setRejectedDate] = useState(formatDateTime(application.rejected_date));
+  const [offerDate, setOfferDate] = useState(formatDateForInput(application.offer_date));
+  const [rejectedDate, setRejectedDate] = useState(formatDateForInput(application.rejected_date));
   const [error, setError] = useState('');
   const [showConfirmReject, setShowConfirmReject] = useState(false);
 
   /**
-   * Get allowed status transitions for current status
+   * Get allowed status transitions
    */
   const getAllowedStatuses = (): string[] => {
-    return STATUS_FLOW[application.status] || [];
+    return STATUS_FLOW[currentStatus] || [];
   };
 
   /**
-   * Check if a status transition is allowed
+   * Check if status transition is allowed
    */
   const isStatusAllowed = (status: string): boolean => {
     return getAllowedStatuses().includes(status);
@@ -116,15 +111,15 @@ export const UpdateStatusModal = ({
    */
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'Saved':
+      case 'saved':
         return 'text-gray-600';
-      case 'Applied':
+      case 'applied':
         return 'text-blue-600';
-      case 'Interview':
+      case 'interview':
         return 'text-purple-600';
-      case 'Offer':
+      case 'offer':
         return 'text-green-600';
-      case 'Rejected':
+      case 'rejected':
         return 'text-red-600';
       default:
         return 'text-gray-600';
@@ -132,23 +127,19 @@ export const UpdateStatusModal = ({
   };
 
   /**
-   * Validate dates are in correct order
+   * Validate date order
    */
   const validateDateOrder = (): boolean => {
-    const dates: { [key: string]: string } = {
-      applied: appliedDate,
-      interview: interviewDate,
-      offer: offerDate,
-      rejected: rejectedDate,
-    };
+    const dates: Array<{ key: string; value: string }> = [];
+    
+    if (appliedDate) dates.push({ key: 'Applied', value: appliedDate });
+    if (interviewDate) dates.push({ key: 'Interview', value: interviewDate });
+    if (offerDate) dates.push({ key: 'Offer', value: offerDate });
+    if (rejectedDate) dates.push({ key: 'Rejected', value: rejectedDate });
 
-    const dateValues = Object.entries(dates)
-      .filter(([, val]) => val)
-      .map(([key, val]) => ({ key, date: new Date(val) }));
-
-    for (let i = 0; i < dateValues.length - 1; i++) {
-      if (dateValues[i].date > dateValues[i + 1].date) {
-        setError(`${dateValues[i].key} date cannot be after ${dateValues[i + 1].key} date`);
+    for (let i = 0; i < dates.length - 1; i++) {
+      if (new Date(dates[i].value) > new Date(dates[i + 1].value)) {
+        setError(`${dates[i].key} date cannot be after ${dates[i + 1].key} date`);
         return false;
       }
     }
@@ -156,12 +147,19 @@ export const UpdateStatusModal = ({
   };
 
   /**
-   * Validate required fields based on status
+   * Validate required fields
    */
   const validateRequiredFields = (): boolean => {
     setError('');
 
-    if (newStatus === 'Rejected') {
+    // Check for status change
+    if (newStatus === currentStatus) {
+      setError('Please select a different status');
+      return false;
+    }
+
+    // Rejected status validation
+    if (newStatus === 'rejected') {
       if (!rejectionReason.trim()) {
         setError('Rejection reason is required');
         return false;
@@ -172,24 +170,23 @@ export const UpdateStatusModal = ({
       }
     }
 
-    if (newStatus === 'Offer') {
-      //** if (!Object.keys(offerDetails).length || !offerDetails.title?.trim()) {
-       //   setError('Offer title is required');
-      //  return false;
-    //  } **/
+    // Offer status validation
+    if (newStatus === 'offer') {
       if (!offerDate) {
         setError('Offer date is required');
         return false;
       }
     }
 
-    if (newStatus !== 'Saved' && !appliedDate) {
-      setError('Applied date is required');
+    // Applied date required for all statuses except Saved
+    if (newStatus !== 'saved' && !appliedDate) {
+      setError('Applied date is required when moving to ' + newStatus);
       return false;
     }
 
-    if (['Interview', 'Offer', 'Rejected'].includes(newStatus) && !interviewDate) {
-      setError('Interview date is required');
+    // Interview date required for Interview, Offer, Rejected
+    if (['interview', 'offer', 'rejected'].includes(newStatus) && !interviewDate) {
+      setError('Interview date is required for ' + newStatus + ' status');
       return false;
     }
 
@@ -197,15 +194,15 @@ export const UpdateStatusModal = ({
   };
 
   /**
-   * Handle status change with validation
+   * Handle status change
    */
   const handleStatusChange = (status: string) => {
     if (!isStatusAllowed(status)) {
-      setError(`Cannot change from ${application.status} to ${status}`);
+      setError(`Cannot change from ${currentStatus} to ${status}. Follow the application flow.`);
       return;
     }
 
-    if (status === 'Rejected' && newStatus !== 'Rejected') {
+    if (status === 'rejected' && newStatus !== 'rejected') {
       setShowConfirmReject(true);
       setNewStatus(status);
     } else {
@@ -215,59 +212,59 @@ export const UpdateStatusModal = ({
     }
   };
 
-/**
- * Handle save
- */
-const handleSave = async () => {
-  try {
-    if (!validateRequiredFields()) {
-      return;
-    }
-
-    setError('');
-    logInfo('Updating application status', {
-      appId: application.id,
-      newStatus,
-    });
-
-    // Validate offerDetails before stringifying
-    let offerDetailsString = '';
-    if (newStatus === 'Offer') {
-      try {
-        offerDetailsString = JSON.stringify(offerDetails);
-      } catch (err) {
-        setError('Failed to save offer details');
-        logError('Offer details stringify failed', err);
+  /**
+   * Handle save
+   */
+  const handleSave = async () => {
+    try {
+      if (!validateRequiredFields()) {
         return;
       }
+
+      setError('');
+      logInfo('Updating application status', {
+        appId: application.id,
+        oldStatus: currentStatus,
+        newStatus,
+      });
+
+      // Prepare offer details
+      let offerDetailsString = '';
+      if (newStatus === 'offer') {
+        try {
+          offerDetailsString = JSON.stringify(offerDetails);
+        } catch (err) {
+          setError('Failed to save offer details');
+          logError('Offer details stringify failed', err);
+          return;
+        }
+      }
+
+      // Update with lowercase status value
+      const success = await updateApplication(application.id, {
+        status: newStatus, // lowercase value
+        applied_date: appliedDate || null,
+        interview_date: interviewDate || null,
+        offer_date: offerDate || null,
+        rejected_date: rejectedDate || null,
+        rejection_reason: newStatus === 'rejected' ? rejectionReason : null,
+        offer_details: offerDetailsString || null,
+      });
+
+      if (success) {
+        logInfo('Status updated successfully');
+        onStatusUpdated();
+      } else {
+        setError('Failed to update status. Please try again.');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+      logError('Status update failed', err);
     }
+  };
 
-    // Convert empty date strings to null
-    const success = await updateApplication(application.id, {
-      status: newStatus,
-      applied_date: appliedDate || null,        // Convert empty string to null
-      interview_date: interviewDate || null,    // Convert empty string to null
-      offer_date: offerDate || null,            // Convert empty string to null
-      rejected_date: rejectedDate || null,      // Convert empty string to null
-      rejection_reason: newStatus === 'Rejected' ? rejectionReason : null,  // Also convert empty rejection reason to null
-      offer_details: offerDetailsString,
-    });
-
-    if (success) {
-      logInfo('Status updated successfully');
-      onStatusUpdated();
-    } else {
-      setError('Failed to update status. Please try again.');
-    }
-  } catch (err) {
-    setError('An error occurred. Please try again.');
-    logError('Status update failed', err);
-  }
-};
-
-  const isStatusChanged = newStatus !== application.status;
+  const isStatusChanged = newStatus !== currentStatus;
   const canSave = isStatusChanged && !loading;
-  const allowedStatuses = getAllowedStatuses();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -285,52 +282,61 @@ const handleSave = async () => {
           {/* Current Status */}
           <div>
             <p className="text-sm text-gray-600 mb-2">Current Status</p>
-            <div className="p-3 bg-gray-50 rounded-lg font-medium">
-              {application.status}
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <span className="font-medium capitalize">{currentStatus}</span>
             </div>
           </div>
 
-          {/* New Status Selection - Show all statuses, disable invalid transitions */}
+          {/* New Status Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               New Status
             </label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {ALL_STATUSES.map((status) => {
-                const allowed = isStatusAllowed(status);
-                const isSelected = newStatus === status;
+                const allowed = isStatusAllowed(status.value);
+                const isSelected = newStatus === status.value;
+                const isCurrent = currentStatus === status.value;
 
                 return (
                   <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={!allowed || status === application.status}
+                    key={status.value}
+                    onClick={() => handleStatusChange(status.value)}
+                    disabled={!allowed || isCurrent}
                     className={`py-3 px-2 rounded-lg font-medium text-sm transition ${
                       isSelected
-                        ? 'bg-blue-600 text-white'
-                        : allowed
-                        ? `bg-gray-100 ${getStatusColor(status)} hover:bg-gray-200 cursor-pointer`
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                        : allowed && !isCurrent
+                        ? `bg-gray-100 ${getStatusColor(status.value)} hover:bg-gray-200 cursor-pointer`
                         : 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
-                    title={!allowed ? `Cannot transition to ${status} from ${application.status}` : ''}
+                    title={
+                      isCurrent
+                        ? 'Current status'
+                        : !allowed
+                        ? `Cannot transition to ${status.label}`
+                        : `Change to ${status.label}`
+                    }
                   >
-                    {status === 'Saved' && '📌'}
-                    {status === 'Applied' && '📤'}
-                    {status === 'Interview' && '🎯'}
-                    {status === 'Offer' && '🎉'}
-                    {status === 'Rejected' && '❌'}
+                    <span className="text-xl">{status.emoji}</span>
                     <br />
-                    <span className="text-xs">{status}</span>
+                    <span className="text-xs">{status.label}</span>
                   </button>
                 );
               })}
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Disabled statuses are not valid transitions from your current status
+              {getAllowedStatuses().length > 0 ? (
+                <>
+                  Next steps: {getAllowedStatuses().map((s) => ALL_STATUSES.find((st) => st.value === s)?.label).join(', ')}
+                </>
+              ) : (
+                'No valid transitions available'
+              )}
             </p>
           </div>
 
-          {/* Rejection Confirmation Modal */}
+          {/* Rejection Confirmation */}
           {showConfirmReject && (
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <p className="text-sm font-medium text-orange-900 mb-3">
@@ -339,13 +345,13 @@ const handleSave = async () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setNewStatus(application.status);
+                    setNewStatus(currentStatus);
                     setShowConfirmReject(false);
                     setError('');
                   }}
                   className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition"
                 >
-                  Keep Current Status
+                  Cancel
                 </button>
                 <button
                   onClick={() => setShowConfirmReject(false)}
@@ -357,9 +363,9 @@ const handleSave = async () => {
             </div>
           )}
 
-          {/* Rejection Modal */}
-          {newStatus === 'Rejected' && !showConfirmReject && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          {/* Rejection Details */}
+          {newStatus === 'rejected' && !showConfirmReject && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <label className="block text-sm font-medium text-red-900 mb-2">
                 Rejection Reason <span className="text-red-600">*</span>
               </label>
@@ -373,23 +379,20 @@ const handleSave = async () => {
             </div>
           )}
 
-          {/* Offer Modal */}
-          {newStatus === 'Offer' && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          {/* Offer Details */}
+          {newStatus === 'offer' && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <label className="block text-sm font-medium text-green-900 mb-2">
-                Offer Details <span className="text-green-600">*</span>
+                Offer Details
               </label>
               <OfferModal offerDetails={offerDetails} onDetailsChange={setOfferDetails} />
-              {(!offerDetails.title || !offerDetails.title.trim()) && (
-                <p className="text-xs text-green-600 mt-1">Offer title is required</p>
-              )}
             </div>
           )}
 
           {/* Date Pickers */}
           <div className="border-t border-gray-200 pt-4 space-y-3">
             {/* Applied Date */}
-            {newStatus !== 'Saved' && (
+            {newStatus !== 'saved' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Applied Date <span className="text-red-600">*</span>
@@ -401,13 +404,15 @@ const handleSave = async () => {
                     setAppliedDate(e.target.value);
                     setError('');
                   }}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
             )}
 
             {/* Interview Date */}
-            {['Interview', 'Offer', 'Rejected'].includes(newStatus) && (
+            {['interview', 'offer', 'rejected'].includes(newStatus) && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Interview Date <span className="text-red-600">*</span>
@@ -419,13 +424,15 @@ const handleSave = async () => {
                     setInterviewDate(e.target.value);
                     setError('');
                   }}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
             )}
 
             {/* Offer Date */}
-            {newStatus === 'Offer' && (
+            {newStatus === 'offer' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Offer Date <span className="text-red-600">*</span>
@@ -437,13 +444,15 @@ const handleSave = async () => {
                     setOfferDate(e.target.value);
                     setError('');
                   }}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
             )}
 
             {/* Rejected Date */}
-            {newStatus === 'Rejected' && (
+            {newStatus === 'rejected' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Rejection Date <span className="text-red-600">*</span>
@@ -455,25 +464,28 @@ const handleSave = async () => {
                     setRejectedDate(e.target.value);
                     setError('');
                   }}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
             )}
           </div>
 
-          {/* Error */}
+          {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition"
+              disabled={loading}
+              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50"
             >
               Cancel
             </button>
