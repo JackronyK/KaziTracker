@@ -194,6 +194,7 @@ export interface Application {
   salary_offered?: string;
   rejected_date?: string;
   reason_for_rejection?: string;
+  offer_details: string;
   
   // Joined data (populated from API)
   job?: Job;
@@ -223,6 +224,7 @@ export interface ApplicationUpdate {
   interview_notes?: string;
   offer_date?: string;
   salary_offered?: string;
+  offer_details?: string;
   rejected_date?: string;
   reason_for_rejection?: string;
 }

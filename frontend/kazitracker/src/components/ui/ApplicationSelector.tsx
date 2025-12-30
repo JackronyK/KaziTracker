@@ -115,7 +115,7 @@ export const ApplicationSelector = ({
       </label>
 
       {/* Debug info in development */}
-      {debugInfo && process.env.NODE_ENV === 'development' && (
+      {debugInfo  && (
         <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mb-2 max-h-20 overflow-auto">
           Debug: {debugInfo}
         </div>
