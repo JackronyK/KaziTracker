@@ -54,13 +54,13 @@ export const DashboardPage = ({
 }: DashboardPageProps) => {
   // Hooks
   const { applications, loading: appLoading, error: appError, fetchApplications } = useApplications();
-  const { jobs, loading: jobsLoading, fetchJobs, createJob } = useJobs();
-  const { resumes, loading: resumesLoading, fetchResumes, uploadResume } = useResumes();
+  const { jobs, loading: jobsLoading, fetchJobs } = useJobs();
+  const { resumes, loading: resumesLoading, fetchResumes } = useResumes();
   const { user, loading: userLoading } = useUser();
 
   // Modal states
   const [showAddJobModal, setShowAddJobModal] = useState(false);
-  const [showParserModal, setShowParserModal] = useState(false);
+ // const [showParserModal, setShowParserModal] = useState(false);
   const [showCreateAppModal, setShowCreateAppModal] = useState(false);
   const [showUploadResumeModal, setShowUploadResumeModal] = useState(false);
 

@@ -66,7 +66,7 @@ export const DeleteResumeModal = ({
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 {resume.tags && resume.tags.length > 0
-                  ? `Tags: ${resume.tags.join(', ')}`
+                  ? `Tags: ${resume.tags}`
                   : 'No tags'}
               </p>
             </div>

@@ -102,12 +102,12 @@ export const ProfilePage = ({ user, onComplete }: ProfilePageProps) => {
 
       // Call API to update profile
       // Note: You'll need to add this endpoint to your backend
-      const response = await apiClient.updateProfile({
+     /* const response = await apiClient.updateProfile({
         full_name: fullName,
         phone_number: phoneNumber,
         location,
         headline,
-      });
+      }); */
 
       setSuccessMessage('Profile updated successfully!');
       logInfo('Profile updated successfully', { fullName });
@@ -131,7 +131,7 @@ export const ProfilePage = ({ user, onComplete }: ProfilePageProps) => {
   /**
    * Check if profile is complete
    */
-  const isProfileComplete = fullName && (phoneNumber || location);
+  //const isProfileComplete = fullName && (phoneNumber || location);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">

@@ -16,7 +16,7 @@ export interface UseInterviewsReturn {
     delete: boolean;
   };
   fetchInterviews: () => Promise<void>;
-  addInterview: (data: Omit<Interview, 'id' | 'created_at' | 'updated_at'>) => Promise<Interview | null>;
+  addInterview: (data: Omit<Interview, 'id' >) => Promise<Interview | null>;
   updateInterview: (id: number, updates: Partial<Interview>) => Promise<Interview | null>;
   deleteInterview: (id: number) => Promise<boolean>;
   togglePrepTask: (interviewId: number, taskIndex: number) => Promise<boolean>;

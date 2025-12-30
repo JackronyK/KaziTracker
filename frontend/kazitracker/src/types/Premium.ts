@@ -61,3 +61,17 @@ interface Interview {
 }
 
 export type { Interview };
+
+
+// Add this near the top of the file
+export interface InterviewFormData {
+  applicationId: number;
+  date: string;
+  time: string;
+  type: 'phone' | 'video' | 'in-person';
+  interviewer: string;
+  location: string;
+  notes: string;
+  prepChecklist: { task: string; completed: boolean }[];
+  reminders: boolean;
+}

@@ -1,4 +1,4 @@
-// src/components/auth/ProtectedRoute.tsx
+// src/components/Auth/ProtectedRoute.tsx
 /**
  * ProtectedRoute Component
  * Wraps routes that require authentication
@@ -10,8 +10,7 @@ import type { User } from '../../types';
 import { apiClient } from '../../api/index';
 import { logError, logInfo } from '../../utils/errorLogger';
 import { useState, useEffect } from 'react';
-
-
+import { useNavigate } from 'react-router-dom'; // Optional: if you want real redirect
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -29,12 +28,12 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [ setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null); // ✅ Fixed: [value, setter]
+  const navigate = useNavigate(); // Optional
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if token exists
         const token = apiClient.getToken();
         
         if (!token) {
@@ -45,7 +44,6 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
           return;
         }
 
-        // Verify token is still valid by fetching user
         const currentUser = await apiClient.getCurrentUser();
         
         if (currentUser) {
@@ -60,7 +58,7 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
           onAuthCheck?.(null);
         }
       } catch (error) {
-        logError('Authentication check failed');
+        logError('Authentication check failed', error);
         setIsAuthenticated(false);
         setUser(null);
         onAuthCheck?.(null);
@@ -72,7 +70,13 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
     checkAuth();
   }, [onAuthCheck]);
 
-  // Loading state
+  // Optional: Redirect to login if not authenticated
+  // useEffect(() => {
+  //   if (!isLoading && !isAuthenticated) {
+  //     navigate('/login');
+  //   }
+  // }, [isLoading, isAuthenticated, navigate]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -84,17 +88,12 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
     );
   }
 
-  // Not authenticated - redirect to login
   if (!isAuthenticated) {
-    // Remove the token if it's invalid
     apiClient.clearToken();
-    
-    // Note: In a real app, you'd use React Router's Navigate component
-    // For now, we'll handle this in the main App.tsx
-    return null;
+    // In a real app, you'd redirect using useNavigate or return <Navigate to="/login" />
+    return null; // or <Navigate to="/login" replace />
   }
 
-  // Authenticated - render children
   return <>{children}</>;
 };
 

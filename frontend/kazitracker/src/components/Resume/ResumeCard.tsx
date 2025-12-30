@@ -37,7 +37,7 @@ export const ResumeCard = ({
   onView,
 }: ResumeCardProps) => {
   // Format file size
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB'];
@@ -63,7 +63,7 @@ export const ResumeCard = ({
               {resume.filename}
             </h3>
             <p className="text-sm text-gray-600">
-              {formatFileSize(resume.file_size)} • {resume.file_type.toUpperCase()}
+              {formatFileSize(resume.file_size ?? 0)} • {resume.file_type.toUpperCase()}
             </p>
           </div>
         </div>
@@ -78,10 +78,10 @@ export const ResumeCard = ({
       </div>
 
       {/* Tags Display */}
-      {resume.tags && resume.tags.length > 0 && (
+      {Array.isArray(resume.tags) && resume.tags.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
-            {resume.tags.slice(0, 3).map((tag) => (
+            {resume.tags.slice(0, 3).map((tag: string) => (
               <span
                 key={tag}
                 className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"

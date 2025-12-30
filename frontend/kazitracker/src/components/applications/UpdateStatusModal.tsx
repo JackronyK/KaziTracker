@@ -17,7 +17,7 @@ interface UpdateStatusModalProps {
   onClose: () => void;
   onStatusUpdated: () => void;
 }
-
+/*
 interface OfferDetails {
   title?: string;
   salary?: string;
@@ -25,7 +25,7 @@ interface OfferDetails {
   benefits?: string;
   notes?: string;
 }
-
+*/
 /**
  * Status flow mapping - uses LOWERCASE to match database values
  */
@@ -68,6 +68,7 @@ export const UpdateStatusModal = ({
   /**
    * Parse offer details safely
    */
+  /*
   const parseOfferDetails = (): OfferDetails => {
     if (!application.offer_details) return {};
     try {
@@ -76,7 +77,7 @@ export const UpdateStatusModal = ({
       logError('Failed to parse offer details', err);
       return {};
     }
-  };
+  };   */
 
   // Normalize status to lowercase
   const currentStatus = application.status.toLowerCase();
@@ -85,8 +86,8 @@ export const UpdateStatusModal = ({
   const [newStatus, setNewStatus] = useState(currentStatus);
   const [appliedDate, setAppliedDate] = useState(formatDateForInput(application.applied_date));
   const [interviewDate, setInterviewDate] = useState(formatDateForInput(application.interview_date));
-  const [rejectionReason, setRejectionReason] = useState(application.rejection_reason || '');
-  const [offerDetails, setOfferDetails] = useState<OfferDetails>(parseOfferDetails());
+  const [rejectionReason, setRejectionReason] = useState(application.reason_for_rejection || '');
+ // const [offerDetails, setOfferDetails] = useState<OfferDetails>(parseOfferDetails());
   const [offerDate, setOfferDate] = useState(formatDateForInput(application.offer_date));
   const [rejectedDate, setRejectedDate] = useState(formatDateForInput(application.rejected_date));
   const [error, setError] = useState('');
@@ -227,7 +228,7 @@ export const UpdateStatusModal = ({
         oldStatus: currentStatus,
         newStatus,
       });
-
+/*
       // Prepare offer details
       let offerDetailsString = '';
       if (newStatus === 'offer') {
@@ -239,7 +240,7 @@ export const UpdateStatusModal = ({
           return;
         }
       }
-
+*/
       // Update with lowercase status value
       const success = await updateApplication(application.id, {
         status: newStatus, // lowercase value
@@ -248,7 +249,7 @@ export const UpdateStatusModal = ({
         offer_date: offerDate || null,
         rejected_date: rejectedDate || null,
         rejection_reason: newStatus === 'rejected' ? rejectionReason : null,
-        offer_details: offerDetailsString || null,
+       // offer_details: offerDetailsString || null,
       });
 
       if (success) {

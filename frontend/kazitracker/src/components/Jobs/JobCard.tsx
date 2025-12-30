@@ -34,7 +34,8 @@ interface JobCardProps {
  */
 export const JobCard = ({ job, onEdit, onDelete }: JobCardProps) => {
   // Get seniority color
-  const getSeniorityColor = (level: string) => {
+  const getSeniorityColor = (level: string | undefined) => {
+    if (!level) return 'bg-gray-100 text-gray-800';
     switch (level.toLowerCase()) {
       case 'junior':
         return 'bg-green-100 text-green-800';

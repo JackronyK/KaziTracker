@@ -14,8 +14,10 @@ import type {
   DateRangeType,
   UseAnalyticsReturn,
   Application,
+  Resume,
   Job,
 } from '../types';
+import { useCallback, useState } from 'react';
 import { formatDate } from '../utils/formatters';
 import { logInfo, logError } from '../utils/errorLogger';
 

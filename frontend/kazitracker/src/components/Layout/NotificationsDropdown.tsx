@@ -306,13 +306,13 @@ export const NotificationsDropdown = ({
           </div>
 
           {/* Debug Info (Dev) */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* {process.env.NODE_ENV === 'development' && (
             <div className={`px-4 py-2 text-xs border-b ${
               isDarkMode ? 'border-gray-700 bg-gray-900 text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'
             }`}>
               <div>📦 Deadlines: {debugInfo.deadlinesReceived} | 🗓️ Interviews: {debugInfo.interviewsReceived} | 💰 Offers: {debugInfo.offersReceived}</div>
             </div>
-          )}
+          )} */}
 
           {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">

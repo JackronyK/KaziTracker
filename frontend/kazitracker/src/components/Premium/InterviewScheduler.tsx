@@ -9,13 +9,18 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-import type { Interview } from '../../types/Premium';
+import type { Interview, InterviewFormData } from '../../types/Premium';
 import type { UseInterviewsReturn } from '../../hooks/useInterviews';
 import { useToast } from '../../hooks/useToast';
 import { ApplicationSelector } from '../ui/ApplicationSelector';
 import type { Application } from '../../types/index';
 import { apiClient } from '../../api';
 
+// Add this near the top of the component, after imports
+type PrepChecklistItem = {
+  description: string;
+  completed: boolean;
+};
 interface InterviewSchedulerProps extends UseInterviewsReturn {
   toast: ReturnType<typeof useToast>;
 }
@@ -60,7 +65,7 @@ export const InterviewScheduler = ({
   // FORM STATE
   // =========================================================================
 
-  const emptyForm = {
+  const emptyForm: InterviewFormData = {
     applicationId: 0,
     date: '',
     time: '',
@@ -76,7 +81,7 @@ export const InterviewScheduler = ({
     reminders: true,
   };
 
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] = useState<InterviewFormData>(emptyForm);
 
   // =========================================================================
   // HANDLERS
@@ -87,7 +92,7 @@ export const InterviewScheduler = ({
       setEditingInterview(interview);
       
       // Extract prep checklist - handle all possible formats
-      let prepChecklist = [];
+      let prepChecklist: PrepChecklistItem[] = [];
       const rawChecklist = (interview as any).prep_checklist || (interview as any).prepChecklist;
 
       if (typeof rawChecklist === 'string') {
@@ -96,8 +101,8 @@ export const InterviewScheduler = ({
           
           if (Array.isArray(parsed)) {
             // If it's a proper array of objects
-            prepChecklist = parsed.map((item: any) => ({
-              task: item.description || item.task || '',
+            prepChecklist = parsed.map((item: any): PrepChecklistItem => ({
+              description: item.description || item.task || '',
               completed: item.completed || false
             }));
           } else if (typeof parsed === 'object' && parsed !== null) {
@@ -105,8 +110,8 @@ export const InterviewScheduler = ({
             const items = Object.values(parsed).filter(item => 
               typeof item === 'object' && item !== null
             );
-            prepChecklist = items.map((item: any) => ({
-              task: item.description || item.task || '',
+            prepChecklist = items.map((item: any): PrepChecklistItem => ({
+              description: item.description || item.task || '',
               completed: item.completed || false
             }));
           } else {
@@ -118,8 +123,8 @@ export const InterviewScheduler = ({
         }
       } else if (Array.isArray(rawChecklist)) {
         // If it's already a clean array
-        prepChecklist = rawChecklist.map((item: any) => ({
-          task: item.description || item.task || '',
+        prepChecklist = rawChecklist.map((item: any): PrepChecklistItem => ({
+          description: item.description || item.task || '',
           completed: item.completed || false
         }));
       } else {
@@ -134,7 +139,7 @@ export const InterviewScheduler = ({
         interviewer: (interview as any).interviewer || '',
         location: (interview as any).location || '',
         notes: (interview as any).notes || '',
-        prepChecklist: prepChecklist,
+        prepChecklist: prepChecklist.map(item => ({ task: item.description, completed: item.completed })), // Convert back to 'task' for form state
         reminders: (interview as any).reminders !== false,
       });
     } else {
@@ -167,7 +172,7 @@ export const InterviewScheduler = ({
       toast.error('Validation Error', 'Date and time are required');
       return;
     }
-
+    const now = new Date().toISOString();
     // ✅ FIX: Normalize prep checklist BEFORE sending to API
     const normalizedPrepChecklist = formData.prepChecklist
       .filter(item => typeof item.task === 'string' && item.task.trim().length > 0)
@@ -178,15 +183,17 @@ export const InterviewScheduler = ({
 
     // Prepare payload - use snake_case for API
     const payload = {
-      application_id: formData.applicationId,
+      applicationId: formData.applicationId,
       date: formData.date,
       time: formData.time,
       type: formData.type,
       interviewer: formData.interviewer || null,
       location: formData.location || null,
       notes: formData.notes || null,
-      prep_checklist: normalizedPrepChecklist, // ✅ Send proper array of objects
+      prepChecklist: normalizedPrepChecklist, // ✅ Send proper array of objects
       reminders: formData.reminders,
+      createdAt: now,
+      updatedAt: now,
     };
 
     if (editingInterview) {
@@ -344,14 +351,14 @@ export const InterviewScheduler = ({
             const daysUntil = getDaysUntil(interview.date);
             
             // Handle prep checklist - ensure it's always an array
-            let prepChecklist = [];
+            let prepChecklist: PrepChecklistItem[] = [];
             const rawChecklist = (interview as any).prep_checklist || (interview as any).prepChecklist;
             
             if (typeof rawChecklist === 'string') {
               try {
                 const parsed = JSON.parse(rawChecklist);
                 if (Array.isArray(parsed)) {
-                  prepChecklist = parsed.map((item: any) => ({
+                  prepChecklist = parsed.map((item: any): PrepChecklistItem => ({
                     description: item.description || item.task || '',
                     completed: item.completed || false
                   }));
@@ -362,7 +369,7 @@ export const InterviewScheduler = ({
                 prepChecklist = [];
               }
             } else if (Array.isArray(rawChecklist)) {
-              prepChecklist = rawChecklist.map((item: any) => ({
+              prepChecklist = rawChecklist.map((item: any): PrepChecklistItem => ({
                 description: item.description || item.task || '',
                 completed: item.completed || false
               }));

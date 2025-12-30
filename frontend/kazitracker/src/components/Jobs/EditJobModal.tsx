@@ -47,7 +47,7 @@ export const EditJobModal = ({
     salary_range: job.salary_range || '',
     experience_required: job.experience_required || '',
     seniority_level: job.seniority_level || ('Mid' as SeniorityLevel),
-    tech_stack: job.tech_stack ? job.tech_stack.split(',').map(s => s.trim()).filter(s => s) : [],
+    tech_stack: job.tech_stack || [],
     description: job.description || '',
     application_link: job.apply_url || '',
   });
@@ -110,7 +110,7 @@ export const EditJobModal = ({
         seniority_level: formData.seniority_level as SeniorityLevel,
         tech_stack: formData.tech_stack.join(','),
         description: formData.description,
-        application_link: formData.application_link,
+        apply_url: formData.application_link,
       });
 
       if (success) {
