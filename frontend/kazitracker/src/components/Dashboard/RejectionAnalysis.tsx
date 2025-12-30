@@ -23,13 +23,13 @@ interface RejectionAnalysisProps {
 export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
   // Get rejected applications with reasons
   const rejectedApps = applications.filter(
-    (app) => app.status === 'Rejected' && app.rejection_reason
+    (app) => app.status === 'rejected' && app.reason_for_rejection
   );
 
   // Analyze rejection reasons
   const rejectionStats = rejectedApps.reduce(
     (acc, app) => {
-      const reason = app.rejection_reason || 'Unknown';
+      const reason = app.reason_for_rejection || 'Unknown';
       acc[reason] = (acc[reason] || 0) + 1;
       return acc;
     },
@@ -106,7 +106,7 @@ export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
 
     // Overall stats
     const totalRejections = rejectedApps.length;
-    const totalApps = applications.filter((a) => a.status !== 'Saved').length;
+    const totalApps = applications.filter((a) => a.status !== 'saved').length;
     const rejectionRate = totalApps > 0 ? Math.round((totalRejections / totalApps) * 100) : 0;
 
     insights.push(
@@ -120,8 +120,8 @@ export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
     const stats = {
       total: applications.length,
       rejected: rejectedApps.length,
-      interviews: applications.filter((a) => a.status === 'Interview').length,
-      offers: applications.filter((a) => a.status === 'Offer').length,
+      interviews: applications.filter((a) => a.status === 'interview').length,
+      offers: applications.filter((a) => a.status === 'offer').length,
     };
 
     if (stats.offers > 0) {
@@ -163,12 +163,15 @@ export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percentage }) => `${name} (${percentage}%)`}
+                  label={({ payload }) => {
+                    if (!payload) return '';
+                    return `${payload.name} (${payload.percentage}%)`;
+                  }}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {chartData.map((index) => (
+                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

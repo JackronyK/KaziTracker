@@ -88,7 +88,7 @@ export const ApplicationTimeline = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold text-gray-900 truncate">
-                    {app.companyname || 'Unknown Company'}
+                    {app.job?.company || 'Unknown Company'}
                   </p>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${style.bg} ${style.color}`}
@@ -97,7 +97,7 @@ export const ApplicationTimeline = ({
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 truncate mt-1">
-                  {app.job_title || 'Job Title'}
+                  {app.job?.title || 'Job Title'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   {formatDate(app.created_at)}

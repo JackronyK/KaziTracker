@@ -29,7 +29,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  const [ setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {

@@ -7,6 +7,7 @@ import type {
   ParsedJD,
   Application,
   ApplicationInput,
+  ApplicationStatus,
   ApplicationUpdate,
   Resume,
   ApiError,
@@ -396,7 +397,7 @@ class APIClient {
 
   async updateApplicationStatus(
     id: number,
-    status: string,
+    status: ApplicationStatus,
     dates?: { applied_date?: string; interview_date?: string; offer_date?: string; rejected_date?: string }
   ): Promise<Application> {
     try {

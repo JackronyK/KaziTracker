@@ -14,8 +14,8 @@ export type { ResumeVersion };
 
 
 interface Offer {
-  id: string;
-  applicationId: string;
+  id: number;
+  applicationId: number;
   companyName: string;
   position: string;
   salary: number;
@@ -31,8 +31,8 @@ interface Offer {
 export type { Offer };
 
 interface Deadline {
-  id: string;
-  applicationId: string;
+  id: number;
+  applicationId: number;
   title: string;
   dueDate: string;
   type: 'response' | 'decision' | 'negotiation' | 'other';
@@ -46,8 +46,8 @@ interface Deadline {
 export type { Deadline };
 
 interface Interview {
-  id: string;
-  applicationId: string;
+  id: number;
+  applicationId: number;
   date: string;
   time: string;
   type: 'phone' | 'video' | 'in-person';

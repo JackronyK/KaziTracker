@@ -7,7 +7,7 @@ import type { Deadline } from '../../types/Premium';
 import type { UseDeadlinesReturn } from '../../hooks/useDeadlines';
 import type { useToast } from '../../hooks/useToast';
 import { useState, useEffect } from 'react';
-import type { Application } from '../ui/ApplicationSelector';
+import type { Application } from '../../types/index'
 import { ApplicationSelector } from '../ui/ApplicationSelector';
 
 interface DeadlineTrackerProps extends UseDeadlinesReturn {
@@ -164,14 +164,14 @@ export const DeadlineTracker = ({
 
     // ✅ Handle different company name formats
     const companyName = 
-      app.company?.name ||           // Nested: company.name
-      app.companyName ||              // Flat: companyName
-      (app as any).company_name ||    // Snake case: company_name
+      app.job?.company ||           // Nested: company.name
+      //app.companyName ||              // Flat: companyName
+      //(app as any).company_name ||    // Snake case: company_name
       'Unknown Company';
 
     const jobTitle = 
-      app.job_title || 
-      (app as any).position || 
+      app.job?.title || 
+      //(app as any).position || 
       'Unknown Position';
 
     return `${companyName} - ${jobTitle}`;

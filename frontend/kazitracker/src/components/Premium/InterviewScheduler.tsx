@@ -13,7 +13,7 @@ import type { Interview } from '../../types/Premium';
 import type { UseInterviewsReturn } from '../../hooks/useInterviews';
 import { useToast } from '../../hooks/useToast';
 import { ApplicationSelector } from '../ui/ApplicationSelector';
-import type { Application } from '../ui/ApplicationSelector';
+import type { Application } from '../../types/index';
 import { apiClient } from '../../api';
 
 interface InterviewSchedulerProps extends UseInterviewsReturn {
@@ -284,14 +284,11 @@ export const InterviewScheduler = ({
 
     // ✅ Handle different company name formats
     const companyName = 
-      app.company?.name ||           // Nested: company.name
-      app.companyName ||              // Flat: companyName
-      (app as any).company_name ||    // Snake case: company_name
+      app.job?.company
       'Unknown Company';
 
     const jobTitle = 
-      app.job_title || 
-      (app as any).position || 
+      app.job?.title
       'Unknown Position';
 
     return `${companyName} - ${jobTitle}`;
@@ -374,7 +371,7 @@ export const InterviewScheduler = ({
             }
 
             // Count only valid tasks (not empty strings)
-            const completedTasks = prepChecklist.filter((t: any) => t.completed).length;
+           // const completedTasks = prepChecklist.filter((t: any) => t.completed).length;
             const totalTasks = prepChecklist.filter((t: any) => 
               typeof t.description === 'string' && t.description.trim().length > 0
             ).length;

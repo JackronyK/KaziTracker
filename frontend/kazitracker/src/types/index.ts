@@ -81,7 +81,7 @@ export interface Job {
   
   // Requirements & skills
   experience_required?: string;  // e.g., "3-5 years"
-  tech_stack?: string;           // Comma-separated: "python,react,aws"
+  tech_stack?: string[];           // Comma-separated: "python,react,aws"
   parsed_skills?: string;        // Comma-separated: "python,react,aws"
   
   // Classification
@@ -150,6 +150,19 @@ export const parsedJDToJobInput = (parsed: ParsedJD): JobInput => ({
   seniority_level: parsed.seniority_level,
   source: 'parsed',
 });
+
+
+export interface EditJobFormData {
+  title: string;
+  company: string;
+  location: string;
+  salary_range: string;
+  experience_required: string;
+  seniority_level: string;
+  tech_stack: string[]; // ← always array of strings
+  description: string;
+  application_link: string;
+}
 
 // =============================================================================
 // APPLICATION TYPES

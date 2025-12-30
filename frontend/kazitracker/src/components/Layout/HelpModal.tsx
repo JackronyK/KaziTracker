@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { X } from 'lucide-react';
-import { logInfo, logError } from '../../utils/errorLogger';
+import { logInfo } from '../../utils/errorLogger';
 
 interface HelpModalProps {
   onClose: () => void;

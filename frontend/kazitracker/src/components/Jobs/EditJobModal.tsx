@@ -9,6 +9,7 @@ import { X, AlertCircle } from 'lucide-react';
 import { useJobs } from '../../hooks/useJobs';
 import type { Job } from '../../types/index';
 import { logInfo, logError } from '../../utils/errorLogger';
+import type { EditJobFormData, SeniorityLevel } from '../../types/index';
 
 interface EditJobModalProps {
   job: Job;
@@ -39,14 +40,14 @@ export const EditJobModal = ({
   const { updateJob, loading } = useJobs();
 
   // State - initialize with current job values
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EditJobFormData>({
     title: job.title,
     company: job.company,
     location: job.location || '',
     salary_range: job.salary_range || '',
     experience_required: job.experience_required || '',
-    seniority_level: job.seniority_level,
-    tech_stack: job.tech_stack || [],
+    seniority_level: job.seniority_level || ('Mid' as SeniorityLevel),
+    tech_stack: job.tech_stack ? job.tech_stack.split(',').map(s => s.trim()).filter(s => s) : [],
     description: job.description || '',
     application_link: job.apply_url || '',
   });
@@ -106,8 +107,8 @@ export const EditJobModal = ({
         location: formData.location,
         salary_range: formData.salary_range,
         experience_required: formData.experience_required,
-        seniority_levels: formData.seniority_level,
-        tech_stack: formData.tech_stack,
+        seniority_level: formData.seniority_level as SeniorityLevel,
+        tech_stack: formData.tech_stack.join(','),
         description: formData.description,
         application_link: formData.application_link,
       });

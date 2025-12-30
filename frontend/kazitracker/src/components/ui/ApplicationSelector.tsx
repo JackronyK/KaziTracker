@@ -1,20 +1,9 @@
 // src/components/ui/ApplicationSelector.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { Briefcase, Search, AlertTriangle } from 'lucide-react';
+import type { Application } from '../../types';
 
 // ✅ FIXED: Handle both flat and nested company structures
-export interface Application {
-  id: number;
-  company?: {
-    name: string;
-  };
-  companyName?: string; // Fallback for flat structure
-  company_name?: string; // Another possible format
-  job_title: string;
-  position?: string; // Another possible format
-  status: string;
-}
-
 interface ApplicationSelectorProps {
   value: string | number;
   onChange: (applicationId: number) => void;
@@ -41,9 +30,10 @@ export const ApplicationSelector = ({
   // ✅ Helper function to extract company name from various formats
   const getCompanyName = (app: Application): string => {
     // Try nested company.name first
-    if (app.company?.name) {
-      return app.company.name;
+    if (app.job?.company) {
+      return app.job.company;
     }
+  /*  
     // Try flat companyName
     if (app.companyName) {
       return app.companyName;
@@ -51,13 +41,13 @@ export const ApplicationSelector = ({
     // Try snake_case company_name
     if (app.company_name) {
       return app.company_name;
-    }
+    } */
     return 'Unknown Company';
   };
 
   // ✅ Helper function to extract position/job title
   const getJobTitle = (app: Application): string => {
-    return app.job_title || app.position || 'Unknown Position';
+    return app.job?.title || 'Unknown Position';
   };
 
   // Handle application data loading

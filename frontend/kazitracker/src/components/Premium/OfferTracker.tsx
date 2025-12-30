@@ -7,7 +7,7 @@ import type { Offer } from '../../types/Premium';
 import type { UseOffersReturn } from '../../hooks/useOffers';
 import type { useToast } from '../../hooks/useToast';
 import { ApplicationSelector } from '../ui/ApplicationSelector';
-import type { Application } from '../ui/ApplicationSelector';
+import type { Application } from '../../types';
 import { apiClient } from '../../api/index';
 
 interface OfferTrackerProps extends UseOffersReturn {
@@ -255,8 +255,8 @@ export const OfferTracker = ({
     if (!app) return 'Unknown Application';
 
     const companyName = 
-      app.company?.name || app.companyName || (app as any).company_name || 'Unknown Company';
-    const jobTitle = app.job_title || (app as any).position || 'Unknown Position';
+      app.job?.company || 'Unknown Company';
+    const jobTitle = app.job?.title || 'Unknown Position';
 
     return `${companyName} - ${jobTitle}`;
   };
