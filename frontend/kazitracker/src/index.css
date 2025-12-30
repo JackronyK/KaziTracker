@@ -1,11 +1,133 @@
-/* ⚠️ REMOVE THESE 3 LINES - they don't work in Tailwind v4 */
-/* @tailwind base; */
-/* @tailwind components; */
-/* @tailwind utilities; */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =============================================================================
+   GLOBAL DARK MODE FIXES - Applies to ALL components
+   ============================================================================= */
+
+/* Root dark mode styles - Modern gradient background */
+html.dark {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  color: #f1f5f9 !important;
+  color-scheme: dark;
+}
+
+html.dark body,
+html.dark main {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  color: #f1f5f9;
+  min-height: 100vh;
+}
+
+/* Fix all text colors in dark mode */
+.dark {
+  --tw-text-opacity: 1;
+}
+
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #f8fafc !important;
+  background-color: transparent;
+}
+
+.dark p,
+.dark span,
+.dark label,
+.dark legend {
+  color: #e2e8f0 !important;
+  background-color: transparent;
+}
+
+/* Fix all light gray text in dark mode */
+.dark .text-gray-600,
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-700 {
+  color: #e5e7eb !important;
+}
+
+/* Fix all white backgrounds to dark */
+.dark .bg-white,
+.dark [class*="bg-white"] {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.dark .bg-gray-200 {
+  background: #334155 !important;
+}
+
+/* Card styling - Modern gradient look */
+.dark .rounded-lg,
+.dark .card {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure all borders work in dark mode */
+.dark [class*="border-gray"] {
+  border-color: #374151 !important;
+}
+
+.dark [class*="border-slate"] {
+  border-color: #374151 !important;
+}
+
+/* Button styling in dark mode */
+.dark button:not([class*="btn-primary"]):not([class*="btn-danger"]) {
+  color: #e5e7eb;
+  background-color: #374151;
+}
+
+.dark button:not([class*="btn-primary"]):not([class*="btn-danger"]):hover {
+  background-color: #4b5563;
+}
+
+/* Form elements */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #0f172a !important;
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark input::placeholder {
+  color: #64748b !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
 
 /* =============================================================================
    GLOBAL STYLES
@@ -30,11 +152,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #f0f4f8 0%, #f9fafb 100%);
   color: #1f2937;
+  transition: background-color 300ms, color 300ms;
 }
 
 code {
   font-family: 'Courier New', Courier, monospace;
 }
+
 /* =============================================================================
    ANIMATIONS
    ============================================================================= */
@@ -54,6 +178,17 @@ code {
   from {
     opacity: 0;
     transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
   }
   to {
     opacity: 1;
@@ -107,6 +242,10 @@ code {
   animation: slideIn 0.3s ease-in-out;
 }
 
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
 .slide-in-up {
   animation: slideInUp 0.4s ease-out;
 }
@@ -119,6 +258,10 @@ code {
   animation: shimmer 2s infinite;
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 1000px 100%;
+}
+
+.dark .shimmer {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
 }
 
 .spin {
@@ -135,7 +278,8 @@ input[type="password"],
 input[type="url"],
 textarea,
 select {
-  @apply w-full px-4 py-2 border border-gray-300 rounded-lg 
+  @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 
+         rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
          focus:ring-2 focus:ring-blue-500 focus:border-transparent 
          outline-none transition duration-200;
 }
@@ -146,7 +290,7 @@ input[type="password"]:focus,
 input[type="url"]:focus,
 textarea:focus,
 select:focus {
-  @apply ring-2 ring-blue-500 ring-offset-0 border-blue-500;
+  @apply ring-2 ring-blue-500 ring-offset-0 dark:ring-offset-gray-900 border-blue-500;
 }
 
 textarea {
@@ -180,7 +324,8 @@ button:hover:not(:disabled) {
 }
 
 .btn-secondary {
-  @apply bg-gray-200 text-gray-800 hover:bg-gray-300 
+  @apply bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 
+         hover:bg-gray-300 dark:hover:bg-gray-600
          transition-colors duration-200;
 }
 
@@ -194,12 +339,12 @@ button:hover:not(:disabled) {
    ============================================================================= */
 
 .card {
-  @apply bg-white rounded-lg border border-slate-200 shadow-sm 
-         hover:shadow-md transition-shadow duration-200;
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-slate-700 
+         shadow-sm hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200;
 }
 
 .card-hover {
-  @apply cursor-pointer hover:shadow-lg transition-all duration-200 
+  @apply cursor-pointer hover:shadow-lg dark:hover:shadow-slate-900/50 transition-all duration-200 
          hover:translate-y-[-2px];
 }
 
@@ -213,23 +358,23 @@ button:hover:not(:disabled) {
 }
 
 .badge-blue {
-  @apply badge bg-blue-100 text-blue-700;
+  @apply badge bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400;
 }
 
 .badge-green {
-  @apply badge bg-green-100 text-green-700;
+  @apply badge bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400;
 }
 
 .badge-red {
-  @apply badge bg-red-100 text-red-700;
+  @apply badge bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400;
 }
 
 .badge-yellow {
-  @apply badge bg-yellow-100 text-yellow-700;
+  @apply badge bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400;
 }
 
 .badge-purple {
-  @apply badge bg-purple-100 text-purple-700;
+  @apply badge bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400;
 }
 
 /* =============================================================================
@@ -268,8 +413,17 @@ button:hover:not(:disabled) {
   background: #f1f5f9;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
   border-radius: 4px;
 }
 
@@ -277,12 +431,16 @@ button:hover:not(:disabled) {
   background: #94a3b8;
 }
 
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 /* =============================================================================
    TYPOGRAPHY
    ============================================================================= */
 
 h1, h2, h3, h4, h5, h6 {
-  @apply font-bold leading-tight;
+  @apply font-bold leading-tight text-gray-900 dark:text-gray-50;
 }
 
 h1 {
@@ -298,11 +456,12 @@ h3 {
 }
 
 p {
-  @apply leading-relaxed;
+  @apply leading-relaxed text-gray-700 dark:text-gray-300;
 }
 
 a {
-  @apply text-blue-600 hover:text-blue-700 transition-colors duration-200;
+  @apply text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 
+         transition-colors duration-200;
 }
 
 /* =============================================================================
@@ -348,8 +507,8 @@ a {
 }
 
 .loading-spinner {
-  @apply inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 
-         rounded-full animate-spin;
+  @apply inline-block w-4 h-4 border-2 border-gray-300 dark:border-gray-600 
+         border-t-blue-600 rounded-full animate-spin;
 }
 
 /* =============================================================================
@@ -357,19 +516,19 @@ a {
    ============================================================================= */
 
 .error-message {
-  @apply text-red-600 text-sm font-medium;
+  @apply text-red-600 dark:text-red-400 text-sm font-medium;
 }
 
 .success-message {
-  @apply text-green-600 text-sm font-medium;
+  @apply text-green-600 dark:text-green-400 text-sm font-medium;
 }
 
 .warning-message {
-  @apply text-yellow-600 text-sm font-medium;
+  @apply text-yellow-600 dark:text-yellow-400 text-sm font-medium;
 }
 
 .info-message {
-  @apply text-blue-600 text-sm font-medium;
+  @apply text-blue-600 dark:text-blue-400 text-sm font-medium;
 }
 
 /* =============================================================================
@@ -410,7 +569,7 @@ a {
 
 /* Focus visible for keyboard navigation */
 *:focus-visible {
-  @apply outline-2 outline-blue-500 outline-offset-2;
+  @apply outline-2 outline-blue-500 dark:outline-blue-400 outline-offset-2;
 }
 
 /* =============================================================================

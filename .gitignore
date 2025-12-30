@@ -1,3 +1,37 @@
-.env
-kazi_env
-nodu_modules
+# Virtual environments
+kazi_env/
+venv/
+*.env
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# System files
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# Uploads directory
+uploads/
+
+# Node modules (fixing typo from "nodu_modules")
+node_modules/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local configuration files
+*.local
+
+*.ini
+
+# others
+garage/
+docs/"__pycache__/" 
+"__pycache__/" 
