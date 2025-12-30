@@ -6,8 +6,11 @@
  */
 
 import type { ReactNode } from "react";
-import { apiClient } from "../../api/index";
 import type { User } from '../../types';
+import { apiClient } from '../../api/index';
+import { logError, logInfo } from '../../utils/errorLogger';
+import { useState, useEffect } from 'react';
+
 
 
 interface ProtectedRouteProps {
@@ -35,7 +38,7 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
         const token = apiClient.getToken();
         
         if (!token) {
-          logWarn('No authentication token found');
+          logError('No authentication token found');
           setIsAuthenticated(false);
           setUser(null);
           onAuthCheck?.(null);
@@ -51,13 +54,13 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
           setUser(currentUser);
           onAuthCheck?.(currentUser);
         } else {
-          logWarn('User fetch returned null');
+          logError('User fetch returned null');
           setIsAuthenticated(false);
           setUser(null);
           onAuthCheck?.(null);
         }
       } catch (error) {
-        logWarn('Authentication check failed');
+        logError('Authentication check failed');
         setIsAuthenticated(false);
         setUser(null);
         onAuthCheck?.(null);

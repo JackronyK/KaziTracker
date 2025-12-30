@@ -71,7 +71,7 @@ export const ApplicationTimeline = ({
       <h3 className="text-lg font-bold text-gray-900 mb-6">Recent Activity</h3>
 
       <div className="space-y-3">
-        {recentApps.map((app, idx) => {
+        {recentApps.map((app) => {
           const style = getStatusStyle(app.status);
 
           return (
