@@ -62,7 +62,7 @@ export const DeleteResumeModal = ({
             </p>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
               <p className="font-semibold text-gray-900">
-                {resume.original_filename}
+                {resume.filename}
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 {resume.tags && resume.tags.length > 0

@@ -24,17 +24,16 @@ export const ResumeList = ({
   onEdit,
   onDownload,
   onDelete,
-  onTagsChange,
 }: ResumeListProps) => {
   /**
    * Format file size to human-readable format
-   */
+   
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return 'Unknown';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  }; */
 
   /**
    * Get file type icon

@@ -101,10 +101,11 @@ export const ResumePerformance = ({
   /**
    * Get journey segment color
    */
+  /*
   const getJourneySegmentColor = (index: number): string => {
     const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500'];
     return colors[index % colors.length];
-  };
+  }; */
 
   /**
    * Render CV Journey visualization
@@ -318,7 +319,7 @@ export const ResumePerformance = ({
                 </tr>
               </thead>
               <tbody>
-                {metrics.map((metric, idx) => (
+                {metrics.map((metric) => (
                   <tr
                     key={metric.resumeId}
                     className={`border-b border-gray-200 transition-colors cursor-pointer ${

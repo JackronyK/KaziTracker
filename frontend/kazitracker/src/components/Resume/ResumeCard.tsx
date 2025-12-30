@@ -60,7 +60,7 @@ export const ResumeCard = ({
           <span className="text-3xl">{getFileIcon(resume.file_type)}</span>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-bold text-gray-900 truncate">
-              {resume.original_filename}
+              {resume.filename}
             </h3>
             <p className="text-sm text-gray-600">
               {formatFileSize(resume.file_size)} • {resume.file_type.toUpperCase()}
@@ -71,7 +71,7 @@ export const ResumeCard = ({
 
       {/* File Info */}
       <div className="space-y-1 mb-4 text-sm text-gray-600">
-        <p>Uploaded: {formatDate(resume.uploaded_at)}</p>
+        <p>Uploaded: {formatDate(resume.created_at)}</p>
         {resume.tags && resume.tags.length > 0 && (
           <p>Tags: {resume.tags.length} tag{resume.tags.length !== 1 ? 's' : ''}</p>
         )}
@@ -111,7 +111,7 @@ export const ResumeCard = ({
         {resume.url && (
           <a
             href={resume.url}
-            download={resume.original_filename}
+            download={resume.filename}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 rounded transition"

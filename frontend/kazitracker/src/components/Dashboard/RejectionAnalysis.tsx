@@ -5,7 +5,7 @@
  */
 
 import type { Application } from '../../types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface RejectionAnalysisProps {
   applications: Application[];
@@ -168,7 +168,7 @@ export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {chartData.map((entry, index) => (
+                  {chartData.map((index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

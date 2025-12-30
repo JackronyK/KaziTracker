@@ -42,17 +42,17 @@ export const ApplicationCard = ({
     // Check if job object exists and has company info
     if (application.job) {
       // Try different possible company name fields
-      return application.job.company?.name || 
-             application.job.companyName || 
-             application.job.company || 
+      return application.job.company ||
+            //application.job.company?.name || 
+             //application.job.companyName ||               
              (application.job as any)?.company_name || 
              'Unknown Company';
     }
     
     // If no job object, check if company info is directly on application
-    return application.company?.name || 
-           application.companyName || 
-           (application as any)?.company_name || 
+    return (application as any)?.company_name || 
+            //application.company?.name || 
+          // application.companyName ||            
            (application as any)?.company || 
            'Unknown Company';
   };
@@ -65,14 +65,14 @@ export const ApplicationCard = ({
     if (application.job) {
       // Try different possible title fields
       return application.job.title || 
-             application.job.job_title || 
+             //application.job.job_title || 
              (application.job as any)?.position || 
              'Unknown Position';
     }
     
     // If no job object, check if title info is directly on application
-    return application.job_title || 
-           (application as any)?.title || 
+    return  (application as any)?.title || 
+            //application.job_title ||           
            (application as any)?.position || 
            'Unknown Position';
   };
@@ -86,8 +86,8 @@ export const ApplicationCard = ({
              (application.job as any)?.job_location || 
              (application.job as any)?.work_location;
     }
-    return application.location || 
-           (application as any)?.job_location || 
+    return  (application as any)?.job_location || 
+           // application.location ||           
            (application as any)?.work_location;
   };
 
@@ -110,6 +110,7 @@ export const ApplicationCard = ({
   /**
    * Parse offer details safely
    */
+  /**
   const parseOfferDetails = () => {
     if (!application.offer_date) return null; // Use offer_date instead of offer_details
     try {
@@ -118,6 +119,7 @@ export const ApplicationCard = ({
       return null;
     }
   };
+  */
 
   const statusBorderColor = getStatusBorderColor(application.status);
   const companyName = getCompanyName();

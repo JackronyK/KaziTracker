@@ -39,7 +39,6 @@ interface InsightPanelProps {
 export const InsightPanel = ({
     totalApps,
     appliedCount,
-    interviewCount,
     offerCount,
     rejectedCount,
     interviewRate,

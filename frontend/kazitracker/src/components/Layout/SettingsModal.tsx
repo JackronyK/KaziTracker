@@ -3,7 +3,7 @@
 import { Settings as SettingsIcon, Sun, Moon, Monitor, Bell } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useState } from 'react';
-import { logInfo, logError } from '../../utils/errorLogger';
+import { logInfo } from '../../utils/errorLogger';
 
 interface SettingsModalProps {
   onClose: () => void;
