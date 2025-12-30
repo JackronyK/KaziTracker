@@ -3,92 +3,91 @@ import os
 import sys
 from pathlib import Path
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from sqlalchemy.engine.url import URL
-from alembic import context
-from sqlmodel import SQLModel
 from urllib.parse import quote_plus
 
-# 🔑 STEP 1: SET PROJECT ROOT FIRST (needed for both path and env file)
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine.url import URL
+from sqlmodel import SQLModel
+
+# --- Project root & python path (so imports work) ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# 🔑 STEP 2: EXPLICITLY LOAD backend.env
+# --- Load env file explicitly (local dev uses backend.env) ---
 from dotenv import load_dotenv
 dotenv_path = PROJECT_ROOT / "backend.env"
-if not dotenv_path.exists():
-    print(f"🚨 CRITICAL: Env file NOT FOUND at {dotenv_path}")
-    print(f"📂 Project root: {PROJECT_ROOT}")
-    print(f"🔍 Check your file is named EXACTLY 'backend.env' (not .evn or backend-env)")
-    raise SystemExit(1)  # Fail immediately
+if dotenv_path.exists():
+    # override=True ensures CLI env vars (ALEMBIC) can be overridden by backend.env when running locally
+    load_dotenv(dotenv_path=dotenv_path, override=True)
+else:
+    # Not fatal — production/CI may supply DATABASE_URL via secrets
+    print(f"⚠️  backend.env not found at {dotenv_path}. Relying on environment variables (DATABASE_URL).")
 
-# ⚠️ override=True is ESSENTIAL when running CLI commands like `alembic upgrade`
-load_dotenv(dotenv_path=dotenv_path, override=True)
-
-# Now safely import models (after env vars are loaded!)
+# --- Import your models AFTER loading env --- 
+# Adjust this import to match your project layout (e.g. "from backend.models import ..." or "from app.models import ...")
 try:
-    from models import *  # noqa: F403
-except ImportError as e:
-    print(f"🚨 MODEL IMPORT FAILED: {e}")
-    print(f"🔍 PYTHONPATH: {sys.path}")
+    # try common locations
+    try:
+        # preferred: package layout
+        from backend.models import *  # noqa: F403,F401
+    except Exception:
+        # fallback to top-level models.py
+        from models import *  # noqa: F403,F401
+except Exception as e:
+    print("🚨 Failed to import models. Make sure your models are importable and sys.path includes project root.")
     raise
 
-# Get Alembic config object
-config = context.config  # ✅ CORRECT ASSIGNMENT
-
-# Setup logging
+# --- Alembic config & logging ---
+config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
 target_metadata = SQLModel.metadata
 
-# Get DB credentials with defaults
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASS = os.getenv("POSTGRES_PASSWORD")
-DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")  # Default port
-DB_NAME = os.getenv("POSTGRES_DB")
+# --- Build DB URL: prefer DATABASE_URL if present (production/CI) ---
+# If DATABASE_URL exists, use it directly. Otherwise build from POSTGRES_* env vars.
+database_url_env = os.getenv("DATABASE_URL")
+if database_url_env:
+    db_url_str = database_url_env
+else:
+    DB_USER = os.getenv("POSTGRES_USER")
+    DB_PASS = os.getenv("POSTGRES_PASSWORD")
+    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+    DB_NAME = os.getenv("POSTGRES_DB")
 
+    required = {"POSTGRES_USER": DB_USER, "POSTGRES_PASSWORD": DB_PASS, "POSTGRES_DB": DB_NAME}
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
 
-# Validate required vars
-required_vars = {
-    "POSTGRES_USER": DB_USER,
-    "POSTGRES_PASSWORD": DB_PASS,
-    "POSTGRES_DB": DB_NAME
-}
-missing = [k for k, v in required_vars.items() if not v]
-if missing:
-    raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
+    # Handle special characters in password safely via URL.create + render_as_string
+    ssl_required = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("PGSSLMODE") == "require"
+    query = {"sslmode": "require"} if ssl_required else {}
 
-SAFE_PASSWORD = quote_plus(DB_PASS)  # Handles ALL special characters
+    url_obj = URL.create(
+        drivername="postgresql+psycopg2",
+        username=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=int(DB_PORT) if DB_PORT else None,
+        database=DB_NAME,
+        query=query,
+    )
+    # render with password exposed for SQLAlchemy usage
+    db_url_str = url_obj.render_as_string(hide_password=False)
 
+# --- Safety: log a masked version only ---
+masked = db_url_str.replace(os.getenv("POSTGRES_PASSWORD", ""), "***") if os.getenv("POSTGRES_PASSWORD") else db_url_str
+print("=" * 60)
+print("Alembic using DB URL:", masked)
+print("=" * 60)
 
-db_url = URL.create(
-    drivername="postgresql+psycopg2",
-    username=DB_USER,
-    password=SAFE_PASSWORD,  # Use encoded version
-    host=DB_HOST,
-    port=int(DB_PORT),
-    database=DB_NAME
-).render_as_string(hide_password=False)  # Get string representation
-
-print("="*60)
-print("🔐 DEBUG: Password Handling")
-print(f"Raw password length: {len(DB_PASS)}")
-print(f"Full DB URL: {db_url.replace("Admin_123", "***")}")
-print("="*60)
-
-
-# Add SSL for production
-if os.getenv("ENVIRONMENT") == "production":
-    db_url = db_url.update_query_dict({"sslmode": "require"})
-
-# Set in Alembic config
-config.set_main_option("sqlalchemy.url", str(db_url))
-
+# --- Set SQLAlchemy URL for Alembic to use ---
+config.set_main_option("sqlalchemy.url", db_url_str)
 
 def run_migrations_offline():
-    """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -102,20 +101,12 @@ def run_migrations_offline():
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online():
-    """Run migrations in 'online' mode."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={
-            "connect_timeout": 10,
-            "keepalives": 1,          # CORRECT parameter name
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 5
-        }
+        # If you need to pass connect_args (timeouts, etc.) add them as needed
     )
 
     with connectable.connect() as connection:
@@ -128,7 +119,6 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
-
 
 if context.is_offline_mode():
     run_migrations_offline()
