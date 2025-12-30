@@ -27,7 +27,6 @@ import { logInfo, logError } from '../utils/errorLogger';
  */
 const calculateAnalytics = (
   applications: Application[],
-  jobs: Job[],
   filter: AnalyticsFilter
 ): ApplicationStats => {
   const now = new Date();
@@ -58,10 +57,10 @@ const calculateAnalytics = (
 
   // Count expired deadlines (applications that passed deadline)
   let expiredCount = 0;
-  filtered.forEach(app => {
+  /*filtered.forEach(app => {
     const job = jobs.find(j => j.id === app.job_id);
     // Deadline logic would go here (not implemented yet)
-  });
+  }); */
 
   return {
     total,
@@ -188,7 +187,7 @@ export const useAnalytics = (
   const [stats, setStats] = useState<ApplicationStats | null>(null);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [resumePerformance, setResumePerformance] = useState<ResumePerformance[]>([]);
-  const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
+  const [recentActivity] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -202,7 +201,7 @@ export const useAnalytics = (
       logInfo('Calculating analytics', { range: filter.range });
       
       // Calculate stats
-      const calculatedStats = calculateAnalytics(applications, jobs, filter);
+      const calculatedStats = calculateAnalytics(applications, filter);
       setStats(calculatedStats);
       
       // Generate timeline
@@ -234,13 +233,13 @@ export const useAnalytics = (
       try {
         const filter: AnalyticsFilter = { range };
         await fetchAnalytics(filter);
-        return calculateAnalytics(applications, jobs, filter);
+        return calculateAnalytics(applications, filter);
       } catch (err) {
         logError('Failed to get stats by range', err as Error, { range });
         return null;
       }
     },
-    [applications, jobs, fetchAnalytics]
+    [applications, fetchAnalytics]
   );
 
   return {

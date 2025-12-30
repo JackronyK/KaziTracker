@@ -49,7 +49,7 @@ interface DashboardPageProps {
  */
 
 export const DashboardPage = ({ 
-  activeTab = 'dashboard',
+  //activeTab = 'dashboard',
   onNavigate 
 }: DashboardPageProps) => {
   // Hooks
@@ -385,9 +385,10 @@ export const DashboardPage = ({
       {/* Modals */}
       {showAddJobModal && (
         <AddJobModal
-          isOpen={showAddJobModal}
-          onClose={() => setShowAddJobModal(false)}
-          onSuccess={() => {
+          onClose={() => {
+            setShowAddJobModal(false);
+          }}
+          onJobAdded={() => {
             setShowAddJobModal(false);
             fetchJobs(); // Refresh jobs list
           }}
@@ -396,14 +397,12 @@ export const DashboardPage = ({
 
       {showCreateAppModal && (
         <CreateApplicationModal
-          isOpen={showCreateAppModal}
-          onClose={() => setShowCreateAppModal(false)}
-          jobs={jobs}
-          resumes={resumes}
-          onSuccess={() => {
+          onClose={() => {
             setShowCreateAppModal(false);
             fetchApplications(); // Refresh applications
           }}
+          jobs={jobs}
+          resumes={resumes}
         />
       )}
 
