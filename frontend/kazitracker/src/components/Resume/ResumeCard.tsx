@@ -81,7 +81,7 @@ export const ResumeCard = ({
       {Array.isArray(resume.tags) && resume.tags.length > 0 && (
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
-            {resume.tags.slice(0, 3).map((tag: string) => (
+            {(resume.tags as string[]).slice(0, 3).map((tag: string) => (
               <span
                 key={tag}
                 className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"

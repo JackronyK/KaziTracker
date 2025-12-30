@@ -1,3 +1,5 @@
+
+
 // src/components/Auth/ProtectedRoute.tsx
 /**
  * ProtectedRoute Component
@@ -10,7 +12,6 @@ import type { User } from '../../types';
 import { apiClient } from '../../api/index';
 import { logError, logInfo } from '../../utils/errorLogger';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Optional: if you want real redirect
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -28,8 +29,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null); // ✅ Fixed: [value, setter]
-  const navigate = useNavigate(); // Optional
+ // const [ setUser] = useState<User | null>(null); // ✅ Fixed: [value, setter]
+  //const navigate = useNavigate(); // Optional
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -39,7 +40,7 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
         if (!token) {
           logError('No authentication token found');
           setIsAuthenticated(false);
-          setUser(null);
+         // setUser(null);
           onAuthCheck?.(null);
           return;
         }
@@ -49,18 +50,18 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
         if (currentUser) {
           logInfo('User authenticated', { email: currentUser.email });
           setIsAuthenticated(true);
-          setUser(currentUser);
+          //setUser(currentUser);
           onAuthCheck?.(currentUser);
         } else {
           logError('User fetch returned null');
           setIsAuthenticated(false);
-          setUser(null);
+          //setUser(null);
           onAuthCheck?.(null);
         }
       } catch (error) {
         logError('Authentication check failed', error);
         setIsAuthenticated(false);
-        setUser(null);
+        //setUser(null);
         onAuthCheck?.(null);
       } finally {
         setIsLoading(false);
@@ -98,3 +99,4 @@ export const ProtectedRoute = ({ children, onAuthCheck }: ProtectedRouteProps) =
 };
 
 export default ProtectedRoute;
+

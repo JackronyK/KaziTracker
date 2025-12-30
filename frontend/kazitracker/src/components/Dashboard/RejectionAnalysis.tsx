@@ -171,7 +171,7 @@ export const RejectionAnalysis = ({ applications }: RejectionAnalysisProps) => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {chartData.map((index) => (
+                  {chartData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

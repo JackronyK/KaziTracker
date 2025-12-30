@@ -156,7 +156,7 @@ export const ResumeDetail = ({
               <div className="flex justify-between items-start gap-2">
                 <span className="text-sm text-gray-600">Uploaded:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatDate(resume.created_at)}
+                  {resume.created_at ? formatDate(resume.created_at) : 'Unknown'}
                 </span>
               </div>
 
@@ -164,7 +164,7 @@ export const ResumeDetail = ({
               <div className="flex justify-between items-start gap-2">
                 <span className="text-sm text-gray-600">Last Updated:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatDate(resume.updated_at)}
+                  {resume.updated_at ? formatDate(resume.updated_at) : 'Unknown'}
                 </span>
               </div>
             </div>

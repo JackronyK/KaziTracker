@@ -30,7 +30,7 @@ export const NotificationsDropdown = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [debugInfo, setDebugInfo] = useState<any>({});
+  const [ setDebugInfo] = useState<any>({});
 
   // Calculate notifications
   useEffect(() => {

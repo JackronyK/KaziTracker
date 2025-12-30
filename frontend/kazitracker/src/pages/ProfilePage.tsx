@@ -9,7 +9,6 @@
 
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Briefcase, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
-import { apiClient } from '../api';
 import { logInfo, logError } from '../utils/errorLogger';
 import type { User as UserType } from '../types';
 

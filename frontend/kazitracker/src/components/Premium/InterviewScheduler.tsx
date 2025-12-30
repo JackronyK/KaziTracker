@@ -177,7 +177,7 @@ export const InterviewScheduler = ({
     const normalizedPrepChecklist = formData.prepChecklist
       .filter(item => typeof item.task === 'string' && item.task.trim().length > 0)
       .map(item => ({
-        description: item.task.trim(),
+        task: item.task.trim(),
         completed: item.completed,
       }));
 
@@ -187,9 +187,9 @@ export const InterviewScheduler = ({
       date: formData.date,
       time: formData.time,
       type: formData.type,
-      interviewer: formData.interviewer || null,
-      location: formData.location || null,
-      notes: formData.notes || null,
+      interviewer: formData.interviewer || undefined,
+      location: formData.location || undefined,
+      notes: formData.notes || undefined,
       prepChecklist: normalizedPrepChecklist, // ✅ Send proper array of objects
       reminders: formData.reminders,
       createdAt: now,
@@ -379,9 +379,9 @@ export const InterviewScheduler = ({
 
             // Count only valid tasks (not empty strings)
            // const completedTasks = prepChecklist.filter((t: any) => t.completed).length;
-            const totalTasks = prepChecklist.filter((t: any) => 
+           /* const totalTasks = prepChecklist.filter((t: any) => 
               typeof t.description === 'string' && t.description.trim().length > 0
-            ).length;
+            ).length; */
 
             const applicationId = (interview as any).application_id || (interview as any).applicationId;
             const applicationName = getApplicationName(applicationId);

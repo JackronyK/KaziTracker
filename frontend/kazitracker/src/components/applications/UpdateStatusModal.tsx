@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useApplications } from '../../hooks/useApplications';
-import type { Application } from '../../types/index';
+import type { Application, ApplicationStatus } from '../../types/index';
 import { logInfo, logError } from '../../utils/errorLogger';
 import { RejectionModal } from './RejectionModal';
 import { OfferModal } from '../Premium/OfferModal';
@@ -243,12 +243,12 @@ export const UpdateStatusModal = ({
 */
       // Update with lowercase status value
       const success = await updateApplication(application.id, {
-        status: newStatus, // lowercase value
-        applied_date: appliedDate || null,
-        interview_date: interviewDate || null,
-        offer_date: offerDate || null,
-        rejected_date: rejectedDate || null,
-        rejection_reason: newStatus === 'rejected' ? rejectionReason : null,
+        status: newStatus as ApplicationStatus, // lowercase value
+        applied_date: appliedDate || undefined,
+        interview_date: interviewDate || undefined,
+        offer_date: offerDate || undefined,
+        rejected_date: rejectedDate || undefined,
+        //rejection_for_reason: newStatus === 'rejected' ? rejectionReason : undefined,
        // offer_details: offerDetailsString || null,
       });
 
