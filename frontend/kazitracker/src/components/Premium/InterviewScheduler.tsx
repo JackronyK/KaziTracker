@@ -66,14 +66,14 @@ export const InterviewScheduler = ({
   // =========================================================================
 
   const emptyForm: InterviewFormData = {
-    applicationId: 0,
+    application_id: 0,
     date: '',
     time: '',
     type: 'phone' as 'phone' | 'video' | 'in-person',
     interviewer: '',
     location: '',
     notes: '',
-    prepChecklist: [
+    prep_checklist: [
       { task: 'Review job description', completed: false },
       { task: 'Research company', completed: false },
       { task: 'Prepare questions', completed: false },
@@ -93,7 +93,7 @@ export const InterviewScheduler = ({
       
       // Extract prep checklist - handle all possible formats
       let prepChecklist: PrepChecklistItem[] = [];
-      const rawChecklist = (interview as any).prep_checklist || (interview as any).prepChecklist;
+      const rawChecklist = (interview as any).prep_checklist || (interview as any).prep_checklist;
 
       if (typeof rawChecklist === 'string') {
         try {
@@ -132,14 +132,14 @@ export const InterviewScheduler = ({
       }
 
       setFormData({
-        applicationId: (interview as any).application_id || (interview as any).applicationId || 0,
+        application_id: (interview as any).application_id || (interview as any).application_id || 0,
         date: interview.date || '',
         time: (interview as any).time || '',
         type: (interview as any).type || 'phone',
         interviewer: (interview as any).interviewer || '',
         location: (interview as any).location || '',
         notes: (interview as any).notes || '',
-        prepChecklist: prepChecklist.map(item => ({ task: item.description, completed: item.completed })), // Convert back to 'task' for form state
+        prep_checklist: prepChecklist.map(item => ({ task: item.description, completed: item.completed })), // Convert back to 'task' for form state
         reminders: (interview as any).reminders !== false,
       });
     } else {
@@ -157,13 +157,13 @@ export const InterviewScheduler = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  if (!validatePrepChecklist(formData.prepChecklist)) {
+  if (!validatePrepChecklist(formData.prep_checklist)) {
     toast.error('Invalid Prep Checklist', 'All tasks must have non-empty descriptions');
     return;
   }
 
     // Validation
-    if (formData.applicationId === 0) {
+    if (formData.application_id === 0) {
       toast.error('Validation Error', 'Please select an application');
       return;
     }
@@ -174,7 +174,7 @@ export const InterviewScheduler = ({
     }
     const now = new Date().toISOString();
     // ✅ FIX: Normalize prep checklist BEFORE sending to API
-    const normalizedPrepChecklist = formData.prepChecklist
+    const normalizedPrepChecklist = formData.prep_checklist
       .filter(item => typeof item.task === 'string' && item.task.trim().length > 0)
       .map(item => ({
         task: item.task.trim(),
@@ -183,17 +183,17 @@ export const InterviewScheduler = ({
 
     // Prepare payload - use snake_case for API
     const payload = {
-      applicationId: formData.applicationId,
+      application_id: formData.application_id,
       date: formData.date,
       time: formData.time,
       type: formData.type,
       interviewer: formData.interviewer || undefined,
       location: formData.location || undefined,
       notes: formData.notes || undefined,
-      prepChecklist: normalizedPrepChecklist, // ✅ Send proper array of objects
+      prep_checklist: normalizedPrepChecklist, // ✅ Send proper array of objects
       reminders: formData.reminders,
-      createdAt: now,
-      updatedAt: now,
+      created_at: now,
+      updated_at: now,
     };
 
     if (editingInterview) {
@@ -235,20 +235,20 @@ export const InterviewScheduler = ({
   const addPrepChecklistItem = () => {
     setFormData({
       ...formData,
-      prepChecklist: [...formData.prepChecklist, { task: '', completed: false }],
+      prep_checklist: [...formData.prep_checklist, { task: '', completed: false }],
     });
   };
 
   const updatePrepChecklistItem = (index: number, task: string) => {
-    const updated = [...formData.prepChecklist];
+    const updated = [...formData.prep_checklist];
     updated[index] = { ...updated[index], task };
-    setFormData({ ...formData, prepChecklist: updated });
+    setFormData({ ...formData, prep_checklist: updated });
   };
 
   const removePrepChecklistItem = (index: number) => {
     setFormData({
       ...formData,
-      prepChecklist: formData.prepChecklist.filter((_, i) => i !== index),
+      prep_checklist: formData.prep_checklist.filter((_, i) => i !== index),
     });
   };
 
@@ -281,12 +281,12 @@ export const InterviewScheduler = ({
     return 'bg-blue-50 border-blue-300';
   };
 
-  const getApplicationName = (applicationId: number): string => {
+  const getApplicationName = (application_id: number): string => {
     if (!Array.isArray(applications) || applications.length === 0) {
       return 'Unknown Application';
     }
 
-    const app = applications.find(a => a.id === applicationId);
+    const app = applications.find(a => a.id === application_id);
     if (!app) return 'Unknown Application';
 
     // ✅ Handle different company name formats
@@ -352,7 +352,7 @@ export const InterviewScheduler = ({
             
             // Handle prep checklist - ensure it's always an array
             let prepChecklist: PrepChecklistItem[] = [];
-            const rawChecklist = (interview as any).prep_checklist || (interview as any).prepChecklist;
+            const rawChecklist = (interview as any).prep_checklist || (interview as any).prep_checklist;
             
             if (typeof rawChecklist === 'string') {
               try {
@@ -383,8 +383,8 @@ export const InterviewScheduler = ({
               typeof t.description === 'string' && t.description.trim().length > 0
             ).length; */
 
-            const applicationId = (interview as any).application_id || (interview as any).applicationId;
-            const applicationName = getApplicationName(applicationId);
+            const application_id = (interview as any).application_id || (interview as any).application_id;
+            const applicationName = getApplicationName(application_id);
 
             return (
               <div
@@ -567,10 +567,10 @@ export const InterviewScheduler = ({
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Application Selector */}
               <ApplicationSelector
-                value={formData.applicationId}
-                onChange={(id) => setFormData({ ...formData, applicationId: id })}
+                value={formData.application_id}
+                onChange={(id) => setFormData({ ...formData, application_id: id })}
                 required
-                error={formData.applicationId === 0 ? 'Application is required' : undefined}
+                error={formData.application_id === 0 ? 'Application is required' : undefined}
                 applications={applications}
               />
 
@@ -680,7 +680,7 @@ export const InterviewScheduler = ({
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {formData.prepChecklist.map((item, idx) => (
+                  {formData.prep_checklist.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <input
                         type="text"

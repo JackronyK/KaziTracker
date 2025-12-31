@@ -76,14 +76,14 @@ export const OfferTracker = ({
   }, []);
 
   const emptyForm = {
-    applicationId: 0,
-    companyName: '',
+    application_id: 0,
+    company_name: '',
     position: '',
     salary: 0,
     currency: 'KES', // ✅ Default to Kenyan Shilling
-    salaryFrequency: 'monthly' as 'monthly' | 'annual', // ✅ Default to monthly
+    salary_frequency: 'monthly' as 'monthly' | 'annual', // ✅ Default to monthly
     benefits: [] as string[],
-    startDate: '',
+    start_date: '',
     deadline: '',
     status: 'pending' as 'pending' | 'accepted' | 'rejected' | 'negotiating',
     notes: '', // ✅ Added notes field
@@ -110,14 +110,14 @@ export const OfferTracker = ({
       }
 
       setFormData({
-        applicationId: (offer as any).application_id || (offer as any).applicationId || 0,
-        companyName: (offer as any).company_name || (offer as any).companyName || '',
+        application_id: (offer as any).application_id || (offer as any).applicationId || 0,
+        company_name: (offer as any).company_name || (offer as any).companyName || '',
         position: (offer as any).position || '',
         salary: (offer as any).salary || 0,
         currency: (offer as any).currency || 'KES',
-        salaryFrequency: (offer as any).salary_frequency || (offer as any).salaryFrequency || 'monthly',
+        salary_frequency: (offer as any).salary_frequency || (offer as any).salaryFrequency || 'monthly',
         benefits: benefits,
-        startDate: (offer as any).start_date || (offer as any).startDate || '',
+        start_date: (offer as any).start_date || (offer as any).startDate || '',
         deadline: (offer as any).deadline || '',
         status: (offer as any).status || 'pending',
         notes: (offer as any).notes || '',
@@ -140,12 +140,12 @@ export const OfferTracker = ({
     e.preventDefault();
 
     // ✅ Enhanced validation
-    if (formData.applicationId === 0) {
+    if (formData.application_id === 0) {
       toast.error('Validation Error', 'Please select an application');
       return;
     }
 
-    if (!formData.companyName || !formData.position) {
+    if (!formData.company_name || !formData.position) {
       toast.error('Validation Error', 'Company and position are required');
       return;
     }
@@ -155,7 +155,7 @@ export const OfferTracker = ({
       return;
     }
 
-    if (!formData.startDate || !formData.deadline) {
+    if (!formData.start_date || !formData.deadline) {
       toast.error('Validation Error', 'Start date and deadline are required');
       return;
     }
@@ -246,12 +246,12 @@ export const OfferTracker = ({
     return 'text-green-600';
   };
 
-  const getApplicationName = (applicationId: number): string => {
+  const getApplicationName = (application_id: number): string => {
     if (!Array.isArray(applications) || applications.length === 0) {
       return 'Unknown Application';
     }
 
-    const app = applications.find(a => a.id === applicationId);
+    const app = applications.find(a => a.id === application_id);
     if (!app) return 'Unknown Application';
 
     const companyName = 
@@ -524,10 +524,10 @@ export const OfferTracker = ({
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Application Selector */}
               <ApplicationSelector
-                value={formData.applicationId}
-                onChange={(id) => setFormData({ ...formData, applicationId: id })}
+                value={formData.application_id}
+                onChange={(id) => setFormData({ ...formData, application_id: id })}
                 required
-                error={formData.applicationId === 0 ? 'Application is required' : undefined}
+                error={formData.application_id === 0 ? 'Application is required' : undefined}
                 applications={applications}
               />
 
@@ -539,8 +539,8 @@ export const OfferTracker = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                     required
                     placeholder="e.g., TechCorp"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -598,8 +598,8 @@ export const OfferTracker = ({
                   {/* Frequency */}
                   <div className="col-span-3 md:col-span-1">
                     <select
-                      value={formData.salaryFrequency}
-                      onChange={(e) => setFormData({ ...formData, salaryFrequency: e.target.value as 'monthly' | 'annual' })}
+                      value={formData.salary_frequency}
+                      onChange={(e) => setFormData({ ...formData, salary_frequency: e.target.value as 'monthly' | 'annual' })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     >
                       {SALARY_FREQUENCIES.map((freq) => (
@@ -615,7 +615,7 @@ export const OfferTracker = ({
                   <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
                     <DollarSign className="w-4 h-4" />
                     Preview: <span className="font-semibold text-green-700">
-                      {formatSalary(formData.salary, formData.currency, formData.salaryFrequency)}
+                      {formatSalary(formData.salary, formData.currency, formData.salary_frequency)}
                     </span>
                   </p>
                 )}
@@ -670,8 +670,8 @@ export const OfferTracker = ({
                   </label>
                   <input
                     type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   />

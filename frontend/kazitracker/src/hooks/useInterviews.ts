@@ -201,7 +201,7 @@ export const useInterviews = (): UseInterviewsReturn => {
         return true;
       } catch (err) {
         setInterviews(prev => [...prev, original].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         ));
         
         const message = err instanceof Error ? err.message : 'Failed to delete interview';

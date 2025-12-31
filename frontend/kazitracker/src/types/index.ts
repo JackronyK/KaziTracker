@@ -196,6 +196,9 @@ export interface Application {
   reason_for_rejection?: string;
   offer_details: string;
   
+  // others
+  job_title?: string;
+  company_name?:string;
   // Joined data (populated from API)
   job?: Job;
   resume?: Resume;

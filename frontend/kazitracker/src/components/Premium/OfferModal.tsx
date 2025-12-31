@@ -103,6 +103,7 @@ export const OfferModal = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option>USD</option>
+            <option>Kshs</option>
             <option>EUR</option>
             <option>GBP</option>
             <option>CAD</option>

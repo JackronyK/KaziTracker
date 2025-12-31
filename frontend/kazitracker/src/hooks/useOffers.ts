@@ -81,7 +81,7 @@ export const useOffers = (): UseOffersReturn => {
 
       // FIXED: Proper type conversion for API
       const applicationId = (offerData as any).application_id ?? (offerData as any).applicationId;
-      const negotiationHistory = (offerData as any).negotiation_history ?? (offerData as any).negotiationHistory ?? [];
+      const negotiation_history = (offerData as any).negotiation_history ?? (offerData as any).negotiation_history ?? [];
 
       // Validate application_id
       if (!applicationId || applicationId === '' || isNaN(Number(applicationId))) {
@@ -97,7 +97,7 @@ export const useOffers = (): UseOffersReturn => {
         start_date: (offerData as any).start_date ?? (offerData as any).startDate,
         deadline: (offerData as any).deadline,
         status: (offerData as any).status ?? 'pending',
-        negotiation_history: JSON.stringify(negotiationHistory), // Convert to JSON string
+        negotiation_history: JSON.stringify(negotiation_history), // Convert to JSON string
       };
 
       logInfo('Offer payload:', payload);
@@ -201,7 +201,7 @@ export const useOffers = (): UseOffersReturn => {
       return true;
     } catch (err) {
       setOffers(prev => [...prev, original].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ));
       
       const message = err instanceof Error ? err.message : 'Failed to delete offer';

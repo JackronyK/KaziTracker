@@ -33,21 +33,21 @@ export const ApplicationSelector = ({
     if (app.job?.company) {
       return app.job.company;
     }
-  /*  
+   
     // Try flat companyName
-    if (app.companyName) {
+    /*if (app.companyName) {
       return app.companyName;
-    }
+    } */
     // Try snake_case company_name
     if (app.company_name) {
       return app.company_name;
-    } */
+    } 
     return 'Unknown Company';
   };
 
   // ✅ Helper function to extract position/job title
   const getJobTitle = (app: Application): string => {
-    return app.job?.title || 'Unknown Position';
+    return app.job?.title || app.job_title || 'Unknown Position';
   };
 
   // Handle application data loading

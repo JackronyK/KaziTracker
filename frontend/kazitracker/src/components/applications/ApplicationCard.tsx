@@ -65,14 +65,14 @@ export const ApplicationCard = ({
     if (application.job) {
       // Try different possible title fields
       return application.job.title || 
-             //application.job.job_title || 
+             // application.job.job_title || 
              (application.job as any)?.position || 
              'Unknown Position';
     }
     
     // If no job object, check if title info is directly on application
     return  (application as any)?.title || 
-            //application.job_title ||           
+            application.job_title ||           
            (application as any)?.position || 
            'Unknown Position';
   };
