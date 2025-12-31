@@ -291,11 +291,11 @@ export const InterviewScheduler = ({
 
     // ✅ Handle different company name formats
     const companyName = 
-      app.job?.company
+      app.company_name
       'Unknown Company';
 
     const jobTitle = 
-      app.job?.title
+      app.job_title
       'Unknown Position';
 
     return `${companyName} - ${jobTitle}`;
