@@ -187,7 +187,7 @@ export const useDeadlines = (): UseDeadlinesReturn => {
       return true;
     } catch (err) {
       setDeadlines(prev => [...prev, original].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ));
       
       const errorMsg = err instanceof Error ? err.message : 'Failed to delete deadline';
