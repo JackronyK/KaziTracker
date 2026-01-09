@@ -25,7 +25,6 @@ else:
     print(f"⚠️  backend.env not found at {dotenv_path}. Relying on environment variables (DATABASE_URL).")
 
 # --- Import your models AFTER loading env --- 
-# Adjust this import to match your project layout (e.g. "from backend.models import ..." or "from app.models import ...")
 try:
     # try common locations
     try:

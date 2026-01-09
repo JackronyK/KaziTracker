@@ -57,7 +57,7 @@ export const InsightPanel = ({
         if (interviewRate >= 20) {
             insights.push({
                 icon: <Award className="w-5 h-5" />,
-                title: 'Excellent INterview Rate',
+                title: 'Excellent Interview Rate',
                 message: `Your ${interviewRate.toFixed(1)}% interview rate is above average. Keep it up!`,
                 type: 'success',                
             });

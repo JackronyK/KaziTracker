@@ -1,598 +1,467 @@
 # ============================================================================
-# PROJECT STRUCTURE (Create this folder layout)
+# routes/applications.py - UPDATED
 # ============================================================================
-
 """
-backend/
-├── main.py                          # ← Simplified main file
-├── models.py                        # ← Existing models (no changes)
-├── parser.py                        # ← Existing parser (no changes)
-├── backend.env                      # ← Existing config
-│
-├── core/                            # ← NEW: Core utilities
-│   ├── __init__.py
-│   ├── config.py                    # Configuration & environment
-│   ├── security.py                  # JWT & auth utilities
-│   └── database.py                  # Database session management
-│
-├── schemas/                         # ← NEW: Pydantic schemas
-│   ├── __init__.py
-│   ├── auth.py                      # Auth request/response schemas
-│   ├── job.py
-│   ├── application.py
-│   ├── resume.py
-│   ├── interview.py
-│   ├── offer.py
-│   ├── deadline.py
-│   └── profile.py
-│
-├── routes/                          # ← NEW: API routes (modular)
-│   ├── __init__.py
-│   ├── auth.py
-│   ├── jobs.py
-│   ├── applications.py
-│   ├── resumes.py
-│   ├── interviews.py
-│   ├── offers.py
-│   ├── deadlines.py
-│   └── profile.py
-│
-└── uploads/                         # ← Resume storage
+Applications Routes - Updated for new database structure
+Now auto-creates Offer when status changes to "offer"
 """
-
-# ============================================================================
-# 1. core/config.py - Configuration Management
-# ============================================================================
-
-"""
-# File: core/config.py
-"""
-import os
-from urllib.parse import quote_plus
-from dotenv import load_dotenv
-
-ENV = os.getenv("ENV", "dev").lower()
-if ENV != "prod":
-    load_dotenv("backend.env")
-
-# Database
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    DB_USER = os.getenv("POSTGRES_USER")
-    DB_PASS = os.getenv("POSTGRES_PASSWORD")
-    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-    DB_NAME = os.getenv("POSTGRES_DB")
-    if not all([DB_USER, DB_PASS, DB_NAME]):
-        raise RuntimeError("DATABASE_URL not set and POSTGRES_{USER,PASSWORD,DB} incomplete")
-    DB_PASS_ENC = quote_plus(DB_PASS)
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS_ENC}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# JWT
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-key")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "24"))
-
-# File uploads
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# LLM
-USE_LLM = os.getenv("USE_LLM", "false").lower() == "true"
-
-# CORS
-CORS_ALLOW_ORIGINS = os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if os.getenv("CORS_ALLOW_ORIGINS") else ["*"]
-
-# App
-APP_NAME = "JobAppTracker API"
-APP_VERSION = "0.1.0"
-
-
-# ============================================================================
-# 2. core/database.py - Database Setup
-# ============================================================================
-
-"""
-# File: core/database.py
-"""
-from sqlmodel import Session, create_engine, SQLModel
-from core.config import DATABASE_URL, ENV
-
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-)
-
-def init_db():
-    """Initialize database (create tables if needed - dev only)"""
-    if ENV != "prod":
-        SQLModel.metadata.create_all(engine)
-        print("✓ Database tables ensured (dev mode)")
-
-def get_session():
-    """Get SQLModel session"""
-    with Session(engine) as session:
-        yield session
-
-# Backwards compatibility
-def get_db():
-    """Alias for get_session"""
-    with Session(engine) as session:
-        yield session
-
-
-# ============================================================================
-# 3. core/security.py - Authentication Utilities
-# ============================================================================
-
-"""
-# File: core/security.py
-"""
-from datetime import datetime, timedelta
-import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from core.config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_HOURS
-from core.database import get_session
-from models import User
-
-security = HTTPBearer()
-
-def create_access_token(email: str) -> str:
-    """Create JWT token"""
-    payload = {
-        "sub": email,
-        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """Verify JWT and return email"""
-    if not credentials or not credentials.credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing credentials"
-        )
-    
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        email = payload.get("sub")
-        if not email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload"
-            )
-        return email
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
-
-def get_current_user(
-    email: str = Depends(verify_token),
-    session: Session = Depends(get_session)
-) -> User:
-    """Get current user from token"""
-    user = session.exec(select(User).where(User.email == email)).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
-
-
-# ============================================================================
-# 4. schemas/__init__.py - Export all schemas
-# ============================================================================
-
-"""
-# File: schemas/__init__.py
-"""
-from .auth import LoginRequest, TokenResponse
-from .job import JobInput, JobResponse
-from .application import ApplicationInput, ApplicationUpdate, ApplicationResponse
-from .resume import ResumeResponse
-from .interview import InterviewCreate, InterviewUpdate
-from .offer import OfferCreate, OfferUpdate
-from .deadline import DeadlineCreate, DeadlineUpdate
-from .profile import ProfileUpdate, ProfileResponse
-
-__all__ = [
-    "LoginRequest",
-    "TokenResponse",
-    "JobInput",
-    "JobResponse",
-    "ApplicationInput",
-    "ApplicationUpdate",
-    "ApplicationResponse",
-    "ResumeResponse",
-    "InterviewCreate",
-    "InterviewUpdate",
-    "OfferCreate",
-    "OfferUpdate",
-    "DeadlineCreate",
-    "DeadlineUpdate",
-    "ProfileUpdate",
-    "ProfileResponse",
-]
-
-
-# ============================================================================
-# 5. schemas/auth.py
-# ============================================================================
-
-"""
-# File: schemas/auth.py
-"""
-from pydantic import BaseModel
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
-# ============================================================================
-# 6. routes/__init__.py - Register all routes
-# ============================================================================
-
-"""
-# File: routes/__init__.py
-"""
-from fastapi import APIRouter
-from . import auth, jobs, applications, resumes, interviews, offers, deadlines, profile
-
-def init_routes() -> APIRouter:
-    """Initialize and return all routes"""
-    router = APIRouter()
-    
-    router.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-    router.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
-    router.include_router(applications.router, prefix="/api/applications", tags=["applications"])
-    router.include_router(resumes.router, prefix="/api/resumes", tags=["resumes"])
-    router.include_router(interviews.router, prefix="/api/interviews", tags=["interviews"])
-    router.include_router(offers.router, prefix="/api/offers", tags=["offers"])
-    router.include_router(deadlines.router, prefix="/api/deadlines", tags=["deadlines"])
-    router.include_router(profile.router, prefix="/api/profile", tags=["profile"])
-    
-    return router
-
-
-# ============================================================================
-# 7. routes/auth.py - Authentication routes
-# ============================================================================
-
-"""
-# File: routes/auth.py
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
-from core.database import get_session
-from core.security import create_access_token, get_current_user
-from models import User
-from schemas import LoginRequest, TokenResponse
-
-router = APIRouter()
-
-@router.post("/signup", response_model=TokenResponse)
-def signup(req: LoginRequest, session: Session = Depends(get_session)):
-    """Sign up new user"""
-    existing = session.exec(select(User).where(User.email == req.email)).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already exists"
-        )
-    
-    user = User(email=req.email, password_hash=req.password)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    
-    token = create_access_token(req.email)
-    return TokenResponse(access_token=token)
-
-@router.post("/login", response_model=TokenResponse)
-def login(req: LoginRequest, session: Session = Depends(get_session)):
-    """Login user"""
-    user = session.exec(select(User).where(User.email == req.email)).first()
-    if not user or user.password_hash != req.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-    
-    token = create_access_token(req.email)
-    return TokenResponse(access_token=token)
-
-@router.get("/me")
-def get_me(user: User = Depends(get_current_user)):
-    """Get current user"""
-    return {
-        "id": user.id,
-        "email": user.email,
-        "full_name": user.full_name,
-    }
-
-
-# ============================================================================
-# 8. routes/jobs.py - Job routes (EXAMPLE)
-# ============================================================================
-
-"""
-# File: routes/jobs.py
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from datetime import datetime
 from core.database import get_session
 from core.security import get_current_user
-from models import User, Job
-from schemas import JobInput, JobResponse
-from datetime import datetime
+from models import Application, User, Job, Offer
+from schemas import ApplicationInput, ApplicationUpdate, ApplicationResponse
+import json
 
-router = APIRouter()
+router = APIRouter(prefix="/applications", tags=["applications"])
 
-@router.post("", response_model=JobResponse, status_code=201)
-def create_job(
-    job: JobInput,
+
+@router.post("/create", response_model=ApplicationResponse)
+def create_application(
+    app_input: ApplicationInput,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Create new job"""
-    db_job = Job(
+    """Create new application"""
+    
+    # Verify job exists and belongs to user
+    job = session.exec(
+        select(Job).where(
+            Job.id == app_input.job_id,
+            Job.user_id == user.id
+        )
+    ).first()
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Create application
+    application = Application(
         user_id=user.id,
-        title=job.title,
-        company=job.company,
-        location=job.location,
-        salary_range=job.salary_range,
-        description=job.description,
-        apply_url=job.apply_url,
-        parsed_skills=job.parsed_skills,
-        seniority_level=job.seniority_level,
-        source=job.source or "manual_paste",
+        job_id=app_input.job_id,
+        status=app_input.status.lower(),  # Normalize to lowercase
+        resume_id=app_input.resume_id,
+        notes=app_input.notes
     )
-    session.add(db_job)
+    
+    session.add(application)
     session.commit()
-    session.refresh(db_job)
-    return db_job
+    session.refresh(application)
+    
+    # Build response
+    response = ApplicationResponse(**application.__dict__)
+    response.company_name = job.company
+    response.job_title = job.title
+    
+    return response
 
-@router.get("", response_model=list[JobResponse])
-def list_jobs(
+
+@router.get("/list")
+def list_applications(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """List user's jobs"""
-    jobs = session.exec(
-        select(Job)
-        .where(Job.user_id == user.id)
-        .order_by(Job.created_at.desc())
+    """List all applications for user"""
+    
+    apps = session.exec(
+        select(Application)
+        .where(Application.user_id == user.id)
+        .order_by(Application.created_at.desc())
     ).all()
-    return jobs
-
-@router.get("/{job_id}", response_model=JobResponse)
-def get_job(
-    job_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Get job by ID"""
-    job = session.exec(
-        select(Job).where(Job.id == job_id, Job.user_id == user.id)
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
-
-@router.patch("/{job_id}", response_model=JobResponse)
-def update_job(
-    job_id: int,
-    job_update: JobInput,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Update job"""
-    job = session.exec(
-        select(Job).where(Job.id == job_id, Job.user_id == user.id)
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
     
-    for key, value in job_update.model_dump(exclude_unset=True).items():
-        setattr(job, key, value)
+    result = []
+    for a in apps:
+        job = session.exec(select(Job).where(Job.id == a.job_id)).first()
+        response = ApplicationResponse(**a.__dict__)
+        response.company_name = job.company if job else None
+        response.job_title = job.title if job else None
+        result.append(response)
     
-    session.add(job)
-    session.commit()
-    session.refresh(job)
-    return job
+    return result
 
-@router.delete("/{job_id}", status_code=204)
-def delete_job(
-    job_id: int,
+
+@router.get("/{app_id}", response_model=ApplicationResponse)
+def get_application(
+    app_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Delete job"""
-    job = session.exec(
-        select(Job).where(Job.id == job_id, Job.user_id == user.id)
+    """Get single application"""
+    
+    a = session.exec(
+        select(Application).where(
+            Application.id == app_id,
+            Application.user_id == user.id
+        )
     ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    session.delete(job)
+    
+    if not a:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    job = session.exec(select(Job).where(Job.id == a.job_id)).first()
+    response = ApplicationResponse(**a.__dict__)
+    response.company_name = job.company if job else None
+    response.job_title = job.title if job else None
+    
+    return response
+
+
+@router.patch("/{app_id}", response_model=ApplicationResponse)
+def update_application(
+    app_id: int,
+    app_update: ApplicationUpdate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    ✅ UPDATE APPLICATION STATUS
+    
+    Features:
+    - Updates application status and dates
+    - Auto-creates Offer when status changes to "offer"
+    - No duplication: offer details only stored in Offer table
+    """
+    
+    # Get application
+    a = session.exec(
+        select(Application).where(
+            Application.id == app_id,
+            Application.user_id == user.id
+        )
+    ).first()
+    
+    if not a:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Track old status
+    old_status = a.status.lower() if a.status else None
+    new_status = app_update.status.lower() if app_update.status else old_status
+    
+    # ✅ UPDATE APPLICATION FIELDS (status workflow only)
+    if app_update.status is not None:
+        a.status = new_status
+    if app_update.applied_date is not None:
+        a.applied_date = app_update.applied_date
+    if app_update.interview_date is not None:
+        a.interview_date = app_update.interview_date
+    if app_update.rejected_date is not None:
+        a.rejected_date = app_update.rejected_date
+    if app_update.rejection_reason is not None:
+        a.rejection_reason = app_update.rejection_reason
+    if app_update.resume_id is not None:
+        a.resume_id = app_update.resume_id
+    if app_update.notes is not None:
+        a.notes = app_update.notes
+    
+    # Auto-set timestamps on status changes
+    if app_update.status:
+        if app_update.status.lower() == "applied" and not a.applied_date:
+            a.applied_date = datetime.utcnow()
+        elif app_update.status.lower() == "interview" and not a.interview_date:
+            a.interview_date = datetime.utcnow()
+        elif app_update.status.lower() == "rejected" and not a.rejected_date:
+            a.rejected_date = datetime.utcnow()
+    
+    a.updated_at = datetime.utcnow()
+    
+    # ============================================================================
+    # ✅ AUTO-CREATE OFFER WHEN STATUS CHANGES TO "OFFER"
+    # ============================================================================
+    if new_status == "offer" and old_status != "offer":
+        """
+        When transitioning to offer status:
+        1. Check if offer already exists
+        2. If not, create new Offer with all details
+        3. Link to Application
+        """
+        
+        # Get linked job for company/position info
+        job = session.exec(select(Job).where(Job.id == a.job_id)).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Check if offer already exists
+        existing_offer = session.exec(
+            select(Offer).where(Offer.application_id == app_id)
+        ).first()
+        
+        if not existing_offer:
+            # Parse benefits if provided
+            benefits_json = None
+            if app_update.offer_benefits:
+                try:
+                    if isinstance(app_update.offer_benefits, str):
+                        benefits_json = app_update.offer_benefits  # Already JSON
+                    else:
+                        benefits_json = json.dumps(app_update.offer_benefits)
+                except json.JSONDecodeError:
+                    benefits_json = None
+            
+            # Create new Offer record
+            new_offer = Offer(
+                user_id=user.id,
+                application_id=app_id,
+                company_name=job.company,
+                position=job.title,
+                salary=app_update.offer_salary or 0,
+                currency=app_update.offer_currency or "KES",
+                salary_frequency=app_update.offer_salary_frequency or "monthly",
+                position_type=app_update.offer_position_type,
+                location=app_update.offer_location,
+                start_date=app_update.offer_start_date or datetime.utcnow().date(),
+                offer_date=datetime.utcnow().date(),
+                deadline=app_update.offer_deadline or datetime.utcnow(),
+                benefits=benefits_json,
+                notes=app_update.offer_notes,
+                status="pending",
+            )
+            
+            session.add(new_offer)
+        else:
+            # ✅ Update existing offer with new details
+            if app_update.offer_salary:
+                existing_offer.salary = app_update.offer_salary
+            if app_update.offer_currency:
+                existing_offer.currency = app_update.offer_currency
+            if app_update.offer_salary_frequency:
+                existing_offer.salary_frequency = app_update.offer_salary_frequency
+            if app_update.offer_position_type:
+                existing_offer.position_type = app_update.offer_position_type
+            if app_update.offer_location:
+                existing_offer.location = app_update.offer_location
+            if app_update.offer_start_date:
+                existing_offer.start_date = app_update.offer_start_date
+            if app_update.offer_deadline:
+                existing_offer.deadline = app_update.offer_deadline
+            if app_update.offer_notes:
+                existing_offer.notes = app_update.offer_notes
+            if app_update.offer_benefits:
+                try:
+                    if isinstance(app_update.offer_benefits, str):
+                        existing_offer.benefits = app_update.offer_benefits
+                    else:
+                        existing_offer.benefits = json.dumps(app_update.offer_benefits)
+                except:
+                    pass
+            
+            existing_offer.updated_at = datetime.utcnow()
+    
+    # Save all changes
+    session.add(a)
     session.commit()
+    session.refresh(a)
+    
+    # Build response
+    job = session.exec(select(Job).where(Job.id == a.job_id)).first()
+    response = ApplicationResponse(**a.__dict__)
+    response.company_name = job.company if job else None
+    response.job_title = job.title if job else None
+    
+    return response
+
+
+@router.delete("/{app_id}")
+def delete_application(
+    app_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Delete application (and cascades to offers, interviews, deadlines)"""
+    
+    a = session.exec(
+        select(Application).where(
+            Application.id == app_id,
+            Application.user_id == user.id
+        )
+    ).first()
+    
+    if not a:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    session.delete(a)
+    session.commit()
+    
+    return {"detail": "Application deleted"}
 
 
 # ============================================================================
-# 9. routes/profile.py - User profile routes
+# routes/offers.py - UPDATED
 # ============================================================================
-
 """
-# File: routes/profile.py
+Offers Routes - Updated for new database structure
+Offer is now the single source of truth
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from datetime import datetime
 from core.database import get_session
 from core.security import get_current_user
-from models import User
-from schemas import ProfileUpdate, ProfileResponse
-from datetime import datetime
+from models import Application, User, Offer, Job
+from schemas import OfferCreate, OfferUpdate, OfferResponse, OfferWithApplication
+from typing import List
 
-router = APIRouter()
+router = APIRouter(prefix="/offers", tags=["offers"])
 
-@router.get("", response_model=ProfileResponse)
-def get_profile(
+
+@router.get("/list", response_model=List[OfferResponse])
+def list_offers(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Get user profile"""
-    return user
+    """List all offers for user"""
+    
+    return session.exec(
+        select(Offer)
+        .where(Offer.user_id == user.id)
+        .order_by(Offer.created_at.desc())
+    ).all()
 
-@router.put("", response_model=ProfileResponse)
-def update_profile(
-    profile_data: ProfileUpdate,
+
+@router.get("/application/{app_id}", response_model=List[OfferResponse])
+def get_application_offers(
+    app_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Update user profile"""
-    if not profile_data.full_name or not profile_data.full_name.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Full name is required"
+    """Get offers for specific application"""
+    
+    # Verify application belongs to user
+    app = session.exec(
+        select(Application).where(
+            Application.id == app_id,
+            Application.user_id == user.id
         )
+    ).first()
     
-    if len(profile_data.full_name.strip()) < 2:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Full name must be at least 2 characters"
-        )
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
     
-    user.full_name = profile_data.full_name.strip()
-    user.phone_number = profile_data.phone_number
-    user.location = profile_data.location
-    user.headline = profile_data.headline
-    user.updated_at = datetime.utcnow()
-    
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    
-    return user
+    return session.exec(
+        select(Offer).where(Offer.application_id == app_id)
+    ).all()
 
-@router.patch("", response_model=ProfileResponse)
-def partial_update_profile(
-    profile_data: dict,
+
+@router.get("/{offer_id}", response_model=OfferResponse)
+def get_offer(
+    offer_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Partially update profile"""
-    if "full_name" in profile_data:
-        if not profile_data["full_name"].strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Full name cannot be empty"
-            )
-        user.full_name = profile_data["full_name"].strip()
+    """Get single offer"""
     
-    if "phone_number" in profile_data:
-        user.phone_number = profile_data["phone_number"]
+    offer = session.exec(
+        select(Offer).where(
+            Offer.id == offer_id,
+            Offer.user_id == user.id
+        )
+    ).first()
     
-    if "location" in profile_data:
-        user.location = profile_data["location"]
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
     
-    if "headline" in profile_data:
-        user.headline = profile_data["headline"]
+    return offer
+
+
+@router.post("/create", response_model=OfferResponse, status_code=201)
+def create_offer(
+    offer_in: OfferCreate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    ✅ CREATE OFFER DIRECTLY
+    Can also be auto-created from Application status update
+    """
     
-    user.updated_at = datetime.utcnow()
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    # Verify application exists and belongs to user
+    app = session.exec(
+        select(Application).where(
+            Application.id == offer_in.application_id,
+            Application.user_id == user.id
+        )
+    ).first()
     
-    return user
-
-
-# ============================================================================
-# 10. CLEAN MAIN.PY - Simplified & Production Ready
-# ============================================================================
-
-"""
-# File: main.py (SIMPLIFIED)
-"""
-import os
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from core.config import APP_NAME, APP_VERSION, CORS_ALLOW_ORIGINS, ENV
-from core.database import init_db, engine
-from routes import init_routes
-from parser import JDParser
-from models import User, Job, Application, Resume, Interview, Offer, Deadline
-from datetime import datetime
-
-# Initialize parser
-parser = JDParser(use_llm=os.getenv("USE_LLM", "false").lower() == "true")
-
-# Lifespan
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """App startup and shutdown"""
-    init_db()
-    print("✓ App started")
-    yield
-    print("✓ App shutting down")
-
-# Create app
-app = FastAPI(
-    title=APP_NAME,
-    version=APP_VERSION,
-    lifespan=lifespan
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ALLOW_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include all routes
-app.include_router(init_routes())
-
-# Health check
-@app.get("/health")
-def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
-
-@app.get("/")
-def root():
-    return {
-        "message": APP_NAME,
-        "version": APP_VERSION,
-        "docs": "/docs",
-        "health": "/health"
-    }
-
-# Run
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=ENV != "prod"
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Create offer
+    db_offer = Offer(
+        user_id=user.id,
+        application_id=offer_in.application_id,
+        company_name=offer_in.company_name,
+        position=offer_in.position,
+        salary=offer_in.salary,
+        currency=offer_in.currency or "KES",
+        salary_frequency=offer_in.salary_frequency or "monthly",
+        position_type=offer_in.position_type,
+        location=offer_in.location,
+        start_date=offer_in.start_date,
+        offer_date=offer_in.offer_date,
+        deadline=offer_in.deadline,
+        benefits=offer_in.benefits,
+        notes=offer_in.notes,
+        status=offer_in.status or "pending",
     )
+    
+    session.add(db_offer)
+    session.commit()
+    session.refresh(db_offer)
+    
+    return db_offer
+
+
+@router.put("/{offer_id}", response_model=OfferResponse)
+def update_offer(
+    offer_id: int,
+    offer_in: OfferUpdate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Update offer"""
+    
+    db_offer = session.exec(
+        select(Offer).where(
+            Offer.id == offer_id,
+            Offer.user_id == user.id
+        )
+    ).first()
+    
+    if not db_offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    
+    # Update fields
+    data = offer_in.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(db_offer, k, v)
+    
+    db_offer.updated_at = datetime.utcnow()
+    session.add(db_offer)
+    session.commit()
+    session.refresh(db_offer)
+    
+    return db_offer
+
+
+@router.delete("/{offer_id}", status_code=204)
+def delete_offer(
+    offer_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Delete offer"""
+    
+    db_offer = session.exec(
+        select(Offer).where(
+            Offer.id == offer_id,
+            Offer.user_id == user.id
+        )
+    ).first()
+    
+    if not db_offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    
+    session.delete(db_offer)
+    session.commit()
+    
+    return None

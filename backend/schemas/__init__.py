@@ -10,7 +10,7 @@ from .job import JobInput, JobResponse
 from .application import ApplicationInput, ApplicationUpdate, ApplicationResponse
 from .resume import ResumeResponse
 from .interview import InterviewCreate, InterviewUpdate
-from .offer import OfferCreate, OfferUpdate
+from .offer import OfferCreate, OfferUpdate, OfferResponse, OfferWithApplication
 from .deadline import DeadlineCreate, DeadlineUpdate
 from .profile import ProfileUpdate, ProfileResponse
 
@@ -27,6 +27,8 @@ __all__ = [
     "InterviewUpdate",
     "OfferCreate",
     "OfferUpdate",
+    "OfferResponse",
+    "OfferWithApplication",    
     "DeadlineCreate",
     "DeadlineUpdate",
     "ProfileUpdate",

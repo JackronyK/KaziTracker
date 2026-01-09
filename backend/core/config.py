@@ -14,7 +14,7 @@ if ENV != "prod":
     load_dotenv("backend.env")
 
 # Database
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL_prod")
 if not DATABASE_URL:
     DB_USER = os.getenv("POSTGRES_USER")
     DB_PASS = os.getenv("POSTGRES_PASSWORD")

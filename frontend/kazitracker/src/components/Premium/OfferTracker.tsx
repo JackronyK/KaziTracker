@@ -1,4 +1,4 @@
-// src/components/applications/OfferTracker.tsx
+// src/components/Premium/OfferTracker.tsx
 // PRODUCTION-READY VERSION with Currency & Salary Frequency
 
 import { useState, useEffect } from 'react';
@@ -9,28 +9,12 @@ import type { useToast } from '../../hooks/useToast';
 import { ApplicationSelector } from '../ui/ApplicationSelector';
 import type { Application } from '../../types';
 import { apiClient } from '../../api/index';
+import { CURRENCIES, SALARY_FREQUENCIES } from '../../constants/premium/offer';
 
 interface OfferTrackerProps extends UseOffersReturn {
   toast: ReturnType<typeof useToast>;
 }
 
-// ✅ Currency options with symbols
-const CURRENCIES = [
-  { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
-  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-  { code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
-  { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
-];
-
-// ✅ Salary frequency options
-const SALARY_FREQUENCIES = [
-  { value: 'monthly', label: 'Per Month' },
-  { value: 'annual', label: 'Per Year' },
-];
 
 // ✅ Helper function to get currency symbol
 const getCurrencySymbol = (code: string): string => {
@@ -255,7 +239,7 @@ export const OfferTracker = ({
     if (!app) return 'Unknown Application';
 
     const companyName = 
-      app.job?.company || 'Unknown Company';
+      app.company_name || 'Unknown Company';
     const jobTitle = app.job?.title || 'Unknown Position';
 
     return `${companyName} - ${jobTitle}`;

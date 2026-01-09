@@ -10,7 +10,7 @@ from core.config import APP_NAME, APP_VERSION, CORS_ALLOW_ORIGINS, ENV
 from core.database import init_db, engine
 from routes import init_routes
 #from parser import JDParser
-from models import User, Job
+#from models import User, Job
 from datetime import datetime
 
 # Initialize parser

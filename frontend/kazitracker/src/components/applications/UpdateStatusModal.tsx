@@ -1,7 +1,7 @@
 // src/components/applications/UpdateStatusModal.tsx
 /**
- * UpdateStatusModal Component - FIXED VERSION
- * Fixed case sensitivity issues with status values
+ * UpdateStatusModal Component - ENHANCED VERSION
+ * Now with production-ready offer details capture
  */
 
 import { useState } from 'react';
@@ -18,16 +18,20 @@ interface UpdateStatusModalProps {
   onStatusUpdated: () => void;
 }
 
+// ✅ ENHANCED OfferDetails interface
 interface OfferDetails {
-  title?: string;
-  salary?: string;
-  startDate?: string;
+  salary?: string | number;
+  currency?: string;
+  salary_frequency?: 'monthly' | 'annual';
+  position_type?: string;
+  location?: string;
+  start_date?: string;
   benefits?: string[];
   notes?: string;
 }
 
 /**
- * Status flow mapping - uses LOWERCASE to match database values
+ * Status flow mapping
  */
 const STATUS_FLOW: Record<string, string[]> = {
   'saved': ['applied'],
@@ -68,7 +72,6 @@ export const UpdateStatusModal = ({
   /**
    * Parse offer details safely
    */
-
   const parseOfferDetails = (): OfferDetails => {
     if (!application.offer_details) return {};
     try {
@@ -77,12 +80,12 @@ export const UpdateStatusModal = ({
       logError('Failed to parse offer details', err);
       return {};
     }
-  };   
+  };
 
   // Normalize status to lowercase
   const currentStatus = application.status.toLowerCase();
 
-  // State - all status values in LOWERCASE
+  // ✅ State with all new offer fields
   const [newStatus, setNewStatus] = useState(currentStatus);
   const [appliedDate, setAppliedDate] = useState(formatDateForInput(application.applied_date));
   const [interviewDate, setInterviewDate] = useState(formatDateForInput(application.interview_date));
@@ -91,9 +94,10 @@ export const UpdateStatusModal = ({
   const [rejectedDate, setRejectedDate] = useState(formatDateForInput(application.rejected_date));
   const [error, setError] = useState('');
   const [showConfirmReject, setShowConfirmReject] = useState(false);
-
-
+  
+  // ✅ ENHANCED: Full offer details object
   const [offerDetails, setOfferDetails] = useState<OfferDetails>(parseOfferDetails());
+
   /**
    * Get allowed status transitions
    */
@@ -133,7 +137,7 @@ export const UpdateStatusModal = ({
    */
   const validateDateOrder = (): boolean => {
     const dates: Array<{ key: string; value: string }> = [];
-    
+
     if (appliedDate) dates.push({ key: 'Applied', value: appliedDate });
     if (interviewDate) dates.push({ key: 'Interview', value: interviewDate });
     if (offerDate) dates.push({ key: 'Offer', value: offerDate });
@@ -178,6 +182,11 @@ export const UpdateStatusModal = ({
         setError('Offer date is required');
         return false;
       }
+      // ✅ Validate salary is provided
+      if (!offerDetails.salary || Number(offerDetails.salary) === 0) {
+        setError('Offer salary is required');
+        return false;
+      }
     }
 
     // Applied date required for all statuses except Saved
@@ -200,7 +209,9 @@ export const UpdateStatusModal = ({
    */
   const handleStatusChange = (status: string) => {
     if (!isStatusAllowed(status)) {
-      setError(`Cannot change from ${currentStatus} to ${status}. Follow the application flow.`);
+      setError(
+        `Cannot change from ${currentStatus} to ${status}. Follow the application flow.`
+      );
       return;
     }
 
@@ -228,9 +239,10 @@ export const UpdateStatusModal = ({
         appId: application.id,
         oldStatus: currentStatus,
         newStatus,
+        offerDetails: newStatus === 'offer' ? offerDetails : null,
       });
 
-      // Prepare offer details
+      // ✅ ENHANCED: Prepare offer details string
       let offerDetailsString = '';
       if (newStatus === 'offer') {
         try {
@@ -242,19 +254,33 @@ export const UpdateStatusModal = ({
         }
       }
 
-      // Update with lowercase status value
-      const success = await updateApplication(application.id, {
-        status: newStatus as ApplicationStatus, // lowercase value
+      // ✅ ENHANCED: Map offer details to database columns
+      const updatePayload: any = {
+        status: newStatus as ApplicationStatus,
         applied_date: appliedDate || undefined,
         interview_date: interviewDate || undefined,
         offer_date: offerDate || undefined,
         rejected_date: rejectedDate || undefined,
         reason_for_rejection: newStatus === 'rejected' ? rejectionReason : undefined,
-        offer_details: offerDetailsString || undefined,
-      });
+        offer_details: offerDetailsString || null,
+        
+        // ✅ NEW: Map individual offer fields for better queryability
+        offer_salary: newStatus === 'offer' ? offerDetails.salary : undefined,
+        offer_currency: newStatus === 'offer' ? offerDetails.currency : undefined,
+        offer_salary_frequency: newStatus === 'offer' ? offerDetails.salary_frequency : undefined,
+        offer_position_type: newStatus === 'offer' ? offerDetails.position_type : undefined,
+        offer_location: newStatus === 'offer' ? offerDetails.location : undefined,
+        offer_start_date: newStatus === 'offer' ? offerDetails.start_date : undefined,
+        offer_benefits: newStatus === 'offer' && offerDetails.benefits 
+          ? JSON.stringify(offerDetails.benefits)
+          : undefined,
+        offer_notes: newStatus === 'offer' ? offerDetails.notes : undefined,
+      };
+
+      const success = await updateApplication(application.id, updatePayload);
 
       if (success) {
-        logInfo('Status updated successfully');
+        logInfo('Status updated successfully with offer details', { offerDetails });
         onStatusUpdated();
       } else {
         setError('Failed to update status. Please try again.');
@@ -270,11 +296,14 @@ export const UpdateStatusModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Update Status</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Update Status</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -283,15 +312,17 @@ export const UpdateStatusModal = ({
         <div className="p-6 space-y-4">
           {/* Current Status */}
           <div>
-            <p className="text-sm text-gray-600 mb-2">Current Status</p>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <span className="font-medium capitalize">{currentStatus}</span>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Current Status</p>
+            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="font-medium capitalize text-gray-900 dark:text-gray-100">
+                {currentStatus}
+              </span>
             </div>
           </div>
 
           {/* New Status Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               New Status
             </label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -307,10 +338,12 @@ export const UpdateStatusModal = ({
                     disabled={!allowed || isCurrent}
                     className={`py-3 px-2 rounded-lg font-medium text-sm transition ${
                       isSelected
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 dark:ring-blue-500'
                         : allowed && !isCurrent
-                        ? `bg-gray-100 ${getStatusColor(status.value)} hover:bg-gray-200 cursor-pointer`
-                        : 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                        ? `bg-gray-100 dark:bg-gray-700 ${getStatusColor(
+                            status.value
+                          )} hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer`
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                     title={
                       isCurrent
@@ -327,10 +360,13 @@ export const UpdateStatusModal = ({
                 );
               })}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               {getAllowedStatuses().length > 0 ? (
                 <>
-                  Next steps: {getAllowedStatuses().map((s) => ALL_STATUSES.find((st) => st.value === s)?.label).join(', ')}
+                  Next steps:{' '}
+                  {getAllowedStatuses()
+                    .map((s) => ALL_STATUSES.find((st) => st.value === s)?.label)
+                    .join(', ')}
                 </>
               ) : (
                 'No valid transitions available'
@@ -340,8 +376,8 @@ export const UpdateStatusModal = ({
 
           {/* Rejection Confirmation */}
           {showConfirmReject && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="text-sm font-medium text-orange-900 mb-3">
+            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-200 mb-3">
                 ⚠️ Are you sure you want to reject this application?
               </p>
               <div className="flex gap-2">
@@ -351,7 +387,7 @@ export const UpdateStatusModal = ({
                     setShowConfirmReject(false);
                     setError('');
                   }}
-                  className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition"
+                  className="flex-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition"
                 >
                   Cancel
                 </button>
@@ -367,36 +403,40 @@ export const UpdateStatusModal = ({
 
           {/* Rejection Details */}
           {newStatus === 'rejected' && !showConfirmReject && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <label className="block text-sm font-medium text-red-900 mb-2">
-                Rejection Reason <span className="text-red-600">*</span>
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+              <label className="block text-sm font-medium text-red-900 dark:text-red-200 mb-2">
+                Rejection Reason <span className="text-red-600 dark:text-red-400">*</span>
               </label>
               <RejectionModal
                 rejectionReason={rejectionReason}
                 onReasonChange={setRejectionReason}
               />
               {!rejectionReason.trim() && (
-                <p className="text-xs text-red-600 mt-1">This field is required</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">This field is required</p>
               )}
             </div>
           )}
 
-          {/* Offer Details */}
-          {newStatus === 'offer' && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <label className="block text-sm font-medium text-green-900 mb-2">
+          {/* ✅ ENHANCED: Offer Details with Full Features */}
+          {newStatus === 'offer' && !showConfirmReject && (
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+              <label className="block text-sm font-medium text-green-900 dark:text-green-200 mb-3">
                 Offer Details
               </label>
-              <OfferModal offerDetails={offerDetails} onDetailsChange={setOfferDetails} />
+              <OfferModal
+                offerDetails={offerDetails}
+                onDetailsChange={setOfferDetails}
+                compact={true}
+              />
             </div>
           )}
 
           {/* Date Pickers */}
-          <div className="border-t border-gray-200 pt-4 space-y-3">
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
             {/* Applied Date */}
             {newStatus !== 'saved' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Applied Date <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -407,7 +447,7 @@ export const UpdateStatusModal = ({
                     setError('');
                   }}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -416,7 +456,7 @@ export const UpdateStatusModal = ({
             {/* Interview Date */}
             {['interview', 'offer', 'rejected'].includes(newStatus) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Interview Date <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -427,7 +467,7 @@ export const UpdateStatusModal = ({
                     setError('');
                   }}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -436,7 +476,7 @@ export const UpdateStatusModal = ({
             {/* Offer Date */}
             {newStatus === 'offer' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Offer Date <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -447,7 +487,7 @@ export const UpdateStatusModal = ({
                     setError('');
                   }}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -456,7 +496,7 @@ export const UpdateStatusModal = ({
             {/* Rejected Date */}
             {newStatus === 'rejected' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Rejection Date <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -467,7 +507,7 @@ export const UpdateStatusModal = ({
                     setError('');
                   }}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -476,18 +516,18 @@ export const UpdateStatusModal = ({
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg flex gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition disabled:opacity-50"
             >
               Cancel
             </button>

@@ -164,13 +164,13 @@ export const DeadlineTracker = ({
 
     // ✅ Handle different company name formats
     const companyName = 
-      app.job?.company ||           // Nested: company.name
+      app.company_name ||           // Nested: company.name
       //app.companyName ||              // Flat: companyName
       //(app as any).company_name ||    // Snake case: company_name
       'Unknown Company';
 
     const jobTitle = 
-      app.job?.title || 
+      app.job_title || 
       //(app as any).position || 
       'Unknown Position';
 
